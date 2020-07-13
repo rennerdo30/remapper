@@ -176,6 +176,7 @@ def run():
     for remapper in remappers:
         remapper.run()
 
+
 def debug():
     device = util.select_evdev_via_console()
     print(device.info_string())
@@ -183,11 +184,31 @@ def debug():
         print(event)
 
 
+def capture():
+    device = util.select_evdev_via_console()
+    print(device.info_string())
+    events = {}
+    print("Event capture starting... [CTRL+C to stop]")
+    try:
+        for event in device.read_loop():
+            if event.type == 0 and event.code == 0:
+                continue
+            if event.type not in events:
+                events[event.type] = []
+            events[event.type].append(event.code)
+    except KeyboardInterrupt:
+        for key in events:
+            events[key] = list(set(events[key]))
+        print("")
+        print(events)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='remapper')
     parser.add_argument('--gui', help='run application in gui mode')
     parser.add_argument('--debug', help='check events of a evdev')
-    parser.add_argument('--run', help='check events of a evdev')
+    parser.add_argument('--run', help='run remapper')
+    parser.add_argument('--capture', help='capture events from a device')
     args = parser.parse_args()
 
     if args.gui:
@@ -200,10 +221,12 @@ if __name__ == "__main__":
         debug()
     elif args.run:
         run()
+    elif args.capture:
+        capture()
     else:
         print("Welcome to remapper!")
         print("--------------------")
         print("This software allows you to remap a evdev device to your needs!")
         print("")
-        
+
         main()

@@ -15,10 +15,10 @@ def do_work(loop, in_dev, out_dev, event_map):
             new_event_code = event_map[new_event_code]
         
         value = event.value
-        if event.type == evdev.ecodes.EV_ABS:
+        if event.type == evdev.ecodes.EV_ABS and (event.code < evdev.ecodes.ABS_HAT0X or event.code > evdev.ecodes.ABS_HAT3Y):
             value = int(util.translate(value, 0, 255, -32768, 32767))
         
-        out_dev.write(event.type, new_event_code, event.value)
+        out_dev.write(event.type, new_event_code, value)
         out_dev.syn()
 
 
