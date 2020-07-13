@@ -1,2 +1,4 @@
 builddir/
 .vscode/
+__pycache__/
+*.json
