@@ -22,6 +22,12 @@ class OutputDevice:
                                           bustype=self.bustype, vendor=self.vendor,
                                           product=self.product, version=self.version)
 
+    def write(self, etype, code, value):
+        self.device.write(etype, code, value)
+
+    def syn(self):
+        self.device.syn()
+
     def to_dict(self):
         data = dict()
         data['name'] = self.name

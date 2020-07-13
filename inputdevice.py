@@ -17,8 +17,11 @@ class InputDevice:
     def name(self):
         return self.device.name
 
+    def path(self):
+        return self.device.path
+
     def info_string(self):
-        return self.device.name + " " + self.device.phys + " [" + self.device.path + "]"
+        return self.device.name + " " + self.device.phys + " " + str(self.device.info.vendor) + " " + str(self.device.info.product) + " " + str(self.device.version) + " [" + self.device.path + "]"
 
     def capabilities(self):
         return self.device.capabilities(absinfo=False)
@@ -40,6 +43,9 @@ class InputDevice:
 
     def read_loop(self):
         return self.device.read_loop()
+
+    def close(self):
+        return self.device.close()
 
     def to_dict(self):
         data = dict()

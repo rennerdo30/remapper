@@ -178,6 +178,7 @@ def run():
 
 def debug():
     device = util.select_evdev_via_console()
+    print(device.info_string())
     for event in device.read_loop():
         print(event)
 
@@ -186,6 +187,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='remapper')
     parser.add_argument('--gui', help='run application in gui mode')
     parser.add_argument('--debug', help='check events of a evdev')
+    parser.add_argument('--run', help='check events of a evdev')
     args = parser.parse_args()
 
     if args.gui:
@@ -196,6 +198,8 @@ if __name__ == "__main__":
         sys.exit(app.exec_())
     elif args.debug:
         debug()
+    elif args.run:
+        run()
     else:
         print("Welcome to remapper!")
         print("--------------------")
