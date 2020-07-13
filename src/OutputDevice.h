@@ -11,7 +11,7 @@
 #include "InputDevice.h"
 
 struct libevdev_uinput;
-inline void destroy_libevdev_uinput(libevdev_uinput *uidev) { libevdev_uinput_destroy(uidev); };
+inline void destroy_libevdev_uinput(libevdev_uinput *uidev) { /*libevdev_uinput_destroy(uidev);*/ };
 
 class OutputDevice
 {
@@ -22,7 +22,7 @@ public:
     static OutputDevice Create(const std::string &name, const std::map<InputEventType, std::vector<InputEventCode>> &supportedEvents);
 
 private:
-    OutputDevice(const InputDevice &inputDevice, libevdev_uinput *device) : inputDevice(std::move(inputDevice)), device(device, &destroy_libevdev_uinput){};
+    explicit OutputDevice(const InputDevice &inputDevice, libevdev_uinput *device) : inputDevice(std::move(inputDevice)), device(device, &destroy_libevdev_uinput){};
 
     std::shared_ptr<libevdev_uinput> device;
     InputDevice inputDevice;

@@ -2,10 +2,19 @@
 #define KEYCODES_H
 
 #include <libevdev/libevdev.h>
+#include <type_traits>
 
 #define STRINGIFY(x) E_##x
 
-enum InputEventType
+template <typename Enumeration>
+auto as_integer(Enumeration const value)
+    -> typename std::underlying_type<Enumeration>::type
+{
+    return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+};
+
+
+enum class InputEventType
 {
     SYN = EV_SYN,
     KEY = EV_KEY,
@@ -23,7 +32,7 @@ enum InputEventType
     CNT = (EV_MAX + 1)
 };
 
-enum InputEventCode
+enum class InputEventCode
 {
     STRINGIFY(KEY_RESERVED) = KEY_RESERVED,
     STRINGIFY(KEY_ESC) = KEY_ESC,
@@ -144,10 +153,9 @@ enum InputEventCode
     STRINGIFY(KEY_KPEQUAL) = KEY_KPEQUAL,
     STRINGIFY(KEY_KPPLUSMINUS) = KEY_KPPLUSMINUS,
     STRINGIFY(KEY_PAUSE) = KEY_PAUSE,
-    STRINGIFY(KEY_SCALE) = KEY_SCALE /* AL Compiz Scale (Expose) */,
+    STRINGIFY(KEY_SCALE) = KEY_SCALE,
     STRINGIFY(KEY_KPCOMMA) = KEY_KPCOMMA,
     STRINGIFY(KEY_HANGEUL) = KEY_HANGEUL,
-    STRINGIFY(KEY_HANGUEL) = KEY_HANGUEL,
     STRINGIFY(KEY_HANJA) = KEY_HANJA,
     STRINGIFY(KEY_YEN) = KEY_YEN,
     STRINGIFY(KEY_LEFTMETA) = KEY_LEFTMETA,
@@ -177,10 +185,8 @@ enum InputEventCode
     STRINGIFY(KEY_PROG2) = KEY_PROG2,
     STRINGIFY(KEY_WWW) = KEY_WWW /* AL Internet Browser */,
     STRINGIFY(KEY_MSDOS) = KEY_MSDOS,
-    STRINGIFY(KEY_COFFEE) = KEY_COFFEE /* AL Terminal Lock/Screensaver */,
     STRINGIFY(KEY_SCREENLOCK) = KEY_SCREENLOCK,
-    STRINGIFY(KEY_ROTATE_DISPLAY) = KEY_ROTATE_DISPLAY /* Display orientation for e.g. tablets */,
-    STRINGIFY(KEY_DIRECTION) = KEY_DIRECTION,
+    STRINGIFY(KEY_ROTATE_DISPLAY) = KEY_ROTATE_DISPLAY,
     STRINGIFY(KEY_CYCLEWINDOWS) = KEY_CYCLEWINDOWS,
     STRINGIFY(KEY_MAIL) = KEY_MAIL,
     STRINGIFY(KEY_BOOKMARKS) = KEY_BOOKMARKS /* AC Bookmarks */,
@@ -266,11 +272,9 @@ enum InputEventCode
     STRINGIFY(KEY_VIDEO_NEXT) = KEY_VIDEO_NEXT /* drive next video source */,
     STRINGIFY(KEY_VIDEO_PREV) = KEY_VIDEO_PREV /* drive previous video source */,
     STRINGIFY(KEY_BRIGHTNESS_CYCLE) = KEY_BRIGHTNESS_CYCLE /* brightness up, after max is min */,
-    STRINGIFY(KEY_BRIGHTNESS_AUTO) = KEY_BRIGHTNESS_AUTO /* Set Auto Brightness: manual brightness control is off, rely on ambient */,
-    STRINGIFY(KEY_BRIGHTNESS_ZERO) = KEY_BRIGHTNESS_ZERO,
+    STRINGIFY(KEY_BRIGHTNESS_AUTO) = KEY_BRIGHTNESS_AUTO,
     STRINGIFY(KEY_DISPLAY_OFF) = KEY_DISPLAY_OFF /* display device to off state */,
     STRINGIFY(KEY_WWAN) = KEY_WWAN,
-    STRINGIFY(KEY_WIMAX) = KEY_WIMAX,
     STRINGIFY(KEY_RFKILL) = KEY_RFKILL,
     STRINGIFY(KEY_MICMUTE) = KEY_MICMUTE
 };

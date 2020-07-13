@@ -5,8 +5,24 @@
 
 #include "InputDevice.h"
 #include "InputMap.h"
+#include "KeyCodes.h"
+
+#include <filesystem>
 
 namespace po = boost::program_options;
+
+inline bool exists(const std::string &name)
+{
+    if (FILE *file = fopen(name.c_str(), "r"))
+    {
+        fclose(file);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
 std::map<InputEventType, std::vector<InputEventCode>> CodeMapToCapabilities(const std::map<InputEventCode, InputEventCode> &codeMap)
 {
@@ -26,6 +42,12 @@ std::map<InputEventType, std::vector<InputEventCode>> CodeMapToCapabilities(cons
 
 int main(int argc, char **argv)
 {
+    if (!exists("config.toml"))
+    {
+        std::ofstream output("config.toml");
+        output.close();
+    }
+
     auto data = toml::parse("config.toml");
 
     po::options_description desc("Allowed options");
@@ -71,7 +93,8 @@ int main(int argc, char **argv)
                 {
                     continue;
                 }
-                std::cout << "type=" << event.type << ";code=" << event.code << ";value=" << event.value << std::endl;
+
+                std::cout << "type=" << as_integer(event.type) << ";code=" << as_integer(event.code) << ";value=" << event.value << std::endl;
             }
         }
 
@@ -101,19 +124,10 @@ int main(int argc, char **argv)
         std::cout << "Selected: " << device.Name() << std::endl;
 
         std::map<InputEventCode, InputEventCode> codeMap;
+        std::cout << "Remapping started!" << std::endl;
         bool remapRunning = true;
-        std::cout << "Remapping started! Enter 'exit' to stop.";
         while (remapRunning)
         {
-            std::cout << "Continue? ";
-            std::string msg;
-            std::cin >> msg;
-            if (msg == "exit")
-            {
-                remapRunning = false;
-                break;
-            }
-
             std::cout << "Enter code to remap: ";
             int code;
             std::cin >> code;
@@ -124,14 +138,26 @@ int main(int argc, char **argv)
 
             auto codeA = static_cast<InputEventCode>(code);
             auto codeB = static_cast<InputEventCode>(newCode);
-            codeMap.insert(codeA, codeB);
+            codeMap[codeA] = codeB;
+
+            std::cout << "Continue? [Y/n] ";
+            std::string msg;
+            std::cin >> msg;
+            if (msg == "n")
+            {
+                remapRunning = false;
+                break;
+            }
         }
 
         std::cout << "Name of virtual input? ";
         std::string name;
+        getline(std::cin, name);
 
         auto caps = CodeMapToCapabilities(codeMap);
         OutputDevice outputDevice = OutputDevice::Create(name, caps);
+        std::cout << "Created Device!";
+
         InputMap inputMap(device, outputDevice);
         inputMap.CodeMap(codeMap);
         inputMap.Start();

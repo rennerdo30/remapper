@@ -1,5 +1,7 @@
 #include "OutputDevice.h"
 
+#include <iostream>
+
 OutputDevice OutputDevice::Create(const std::string &name, const std::map<InputEventType, std::vector<InputEventCode>> &supportedEvents)
 {
     libevdev *dev;
@@ -10,20 +12,22 @@ OutputDevice OutputDevice::Create(const std::string &name, const std::map<InputE
 
     for (auto &entry : supportedEvents)
     {
-        libevdev_enable_event_type(dev, entry.first);
-
-        for (auto &code : entry.second)
+        if (libevdev_enable_event_type(dev, as_integer(entry.first)) == 0)
         {
-            libevdev_enable_event_code(dev, entry.first, code, NULL);
+            for (auto &code : entry.second)
+            {
+                libevdev_enable_event_code(dev, as_integer(entry.first), as_integer(code), NULL);
+            }
         }
     }
 
     libevdev_uinput_create_from_device(dev, LIBEVDEV_UINPUT_OPEN_MANAGED, &uidev);
 
-    OutputDevice outputDevice(dev, uidev);
+    OutputDevice outputDevice(InputDevice(dev), uidev);
+    return outputDevice;
 }
 
-void OutputDevice::Write(const InputEvent& event)
+void OutputDevice::Write(const InputEvent &event)
 {
-    libevdev_uinput_write_event(this->device.get(), event.type, event.code, event.value);
+    libevdev_uinput_write_event(this->device.get(), as_integer(event.type), as_integer(event.code), event.value);
 }
