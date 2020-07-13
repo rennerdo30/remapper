@@ -1,15 +1,19 @@
 #!/usr/bin/python3
 import evdev
 import json
+import sys
 import argparse
+from PySide2.QtWidgets import QApplication
 
 import outputdevice
 import inputdevice
 import remap
 import util
 import config
+import gui
 
 CONFIG = config.Config()
+
 
 def main():
     print("You have the following options:")
@@ -30,41 +34,7 @@ def main():
 
 
 def create():
-    print("The following devices are available:")
-    devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
-    counter = 0
-    for device in devices:
-        input_device = inputdevice.InputDevice(device)
-        print("[", str(counter), "]", input_device.info_string())
-        counter = counter + 1
-
-    print("Select the device to remap by entering the number in front of the desired entry.")
-    entered_idx = input()
-
-    valid_input = False
-    device = None
-    while not valid_input:
-        if entered_idx.isnumeric():
-            input_idx = int(entered_idx)
-            if input_idx < 0 or input_idx > len(devices) - 1:
-                valid_input = False
-                print("Input was not valid. Please try again!")
-                entered_idx = input()
-            else:
-                valid_input = True
-                entered_idx = input_idx
-
-                device = inputdevice.InputDevice(devices[entered_idx])
-                print("Selected device:", device.info_string())
-                print("Do you want to continue? [y/n]")
-                confirm = input()
-                if confirm == 'y':
-                    break
-                else:
-                    print("Enter new index:")
-                    entered_idx = input()
-                    valid_input = False
-                    continue
+    device = util.select_evdev_via_console()
 
     print("We are now starting to remap buttons.")
     print("Two modes are available:")
@@ -168,7 +138,6 @@ def manual_mode(device):
         product = device.product()
         version = device.version()
 
-
     name_for_code = dict()
     for key, code in evdev.ecodes.ecodes.items():
         name_for_code[code] = key
@@ -185,10 +154,11 @@ def manual_mode(device):
         if 'ABS' in code_name:
             if evdev.ecodes.EV_KEY not in capabilities:
                 capabilities[evdev.ecodes.EV_ABS] = []
-            
-            capabilities[evdev.ecodes.EV_ABS].append(eventB)                
 
-    output = outputdevice.OutputDevice(device_name, capabilities, bustype, vendor, product, version)
+            capabilities[evdev.ecodes.EV_ABS].append(eventB)
+
+    output = outputdevice.OutputDevice(
+        device_name, capabilities, bustype, vendor, product, version)
     remapper = remap.Remap(event_map, device, output, grab_device)
     CONFIG.add_remapper(remapper)
 
@@ -206,14 +176,30 @@ def run():
     for remapper in remappers:
         remapper.run()
 
+def debug():
+    device = util.select_evdev_via_console()
+    for event in device.read_loop():
+        print(event)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='remapper')
+    parser.add_argument('--gui', help='run application in gui mode')
+    parser.add_argument('--debug', help='check events of a evdev')
     args = parser.parse_args()
 
-    print("Welcome to remapper!")
-    print("--------------------")
-    print("This software allows you to remap a evdev device to your needs!")
-    print("")
-
-    main()
+    if args.gui:
+        app = QApplication(sys.argv)
+        widget = gui.MyWidget()
+        widget.resize(800, 600)
+        widget.show()
+        sys.exit(app.exec_())
+    elif args.debug:
+        debug()
+    else:
+        print("Welcome to remapper!")
+        print("--------------------")
+        print("This software allows you to remap a evdev device to your needs!")
+        print("")
+        
+        main()
