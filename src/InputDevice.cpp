@@ -94,14 +94,6 @@ std::vector<InputEvent> InputDevice::ReadEvents()
     return events;
 }
 
-void InputDevice::from_toml(const toml::value &v)
-{
-    libevdev *device = libevdev_new();
-    const int fd = open(toml::find<std::string>(v, "path").c_str(), O_RDONLY);
-    libevdev_set_fd(device, fd);
-    this->device = std::shared_ptr<libevdev>(device, &destroy_libevdev);
-}
-
 
 std::vector<std::string> glob(const std::string &pattern)
 {

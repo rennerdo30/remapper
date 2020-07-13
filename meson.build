@@ -1,7 +1,7 @@
 project('remapper', 'c', 'cpp', default_options : ['c_std=c18', 'cpp_std=c++17'])
 
 evdev = dependency('libevdev', version : '1.9.0')
-toml11 = declare_dependency(include_directories: 'lib/toml11-3.4.0/')
+nlohmann = dependency('nlohmann_json')
 boost_dep = dependency('boost', modules : ['thread', 'program_options'])
 magic_enum = declare_dependency(include_directories: 'lib/magic_enum')
 
@@ -13,4 +13,4 @@ project_source_files = [
   'src/OutputDevice.cpp'
 ]
 
-executable('remapper', project_source_files, dependencies:[evdev, toml11, boost_dep, magic_enum])
+executable('remapper', project_source_files, dependencies:[evdev, nlohmann, boost_dep, magic_enum])

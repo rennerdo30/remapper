@@ -5,7 +5,6 @@
 #include <vector>
 #include <map>
 #include <thread>
-#include <toml.hpp>
 
 #include <libevdev/libevdev.h>
 
@@ -24,11 +23,14 @@ public:
     std::map<InputEventCode, InputEventCode> CodeMap() const { return this->codeMap; }
     void CodeMap(const std::map<InputEventCode, InputEventCode> &codeMap) { this->codeMap = codeMap; }
 
+    InputDevice From() { return this->from; };
+    OutputDevice To() { return this->to; };
+
 private:
     InputDevice from;
     OutputDevice to;
     std::map<InputEventCode, InputEventCode> codeMap;
-    
+
     void DoWork();
 };
 

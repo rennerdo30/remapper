@@ -23,11 +23,16 @@ OutputDevice OutputDevice::Create(const std::string &name, const std::map<InputE
 
     libevdev_uinput_create_from_device(dev, LIBEVDEV_UINPUT_OPEN_MANAGED, &uidev);
 
-    OutputDevice outputDevice(InputDevice(dev), uidev);
+    OutputDevice outputDevice(supportedEvents, InputDevice(dev), uidev);
     return outputDevice;
 }
 
 void OutputDevice::Write(const InputEvent &event)
 {
     libevdev_uinput_write_event(this->device.get(), as_integer(event.type), as_integer(event.code), event.value);
+}
+
+std::string OutputDevice::Name()
+{
+    return this->inputDevice.Name();
 }
