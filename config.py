@@ -25,6 +25,20 @@ class Config:
         self.data['remappers'].append(remapper.to_dict())
         self.save()
 
+    def remove_remapper(self, remapper):
+        if 'remappers' not in self.data:
+            self.data['remappers'] = []
+        to_delete = None
+        for val in self.data['remappers']:
+            if val['outputdevice']['name'] == remapper.outputdevice.name:
+                to_delete = val
+                break
+
+        if to_delete is not None:
+            self.data['remappers'].remove(to_delete)
+
+        self.save()
+
     def get_remappers(self):
         if 'remappers' not in self.data:
             self.data['remappers'] = []

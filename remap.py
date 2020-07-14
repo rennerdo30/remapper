@@ -7,7 +7,7 @@ import inputdevice
 import util
 
 
-def do_work(loop, in_dev, out_dev, event_map):
+def do_work(loop, remap, in_dev, out_dev, event_map):
     asyncio.set_event_loop(loop)
     for event in in_dev.read_loop():
         new_event_code = event.code
@@ -21,6 +21,9 @@ def do_work(loop, in_dev, out_dev, event_map):
         out_dev.write(event.type, new_event_code, value)
         out_dev.syn()
 
+        if not remap.keep_running:
+            break        
+
 
 class Remap:
     def __init__(self, event_map, inputdevice, outputdevice, grab_device=True):
@@ -28,8 +31,10 @@ class Remap:
         self.inputdevice = inputdevice
         self.outputdevice = outputdevice
         self.grab_device = grab_device
+        self.keep_running = True
 
-    def run(self):
+    def start(self):
+        self.keep_running = True
         print("Starting", "'" + self.inputdevice.name() + "'",
               "to", "'" + self.outputdevice.name + "'", "mapping")
 
@@ -38,10 +43,11 @@ class Remap:
 
         loop = asyncio.new_event_loop()
         x = threading.Thread(target=do_work, args=(loop,
-                                                   self.inputdevice, self.outputdevice, self.event_map))
+                                                   self, self.inputdevice, self.outputdevice, self.event_map))
         x.start()
 
     def stop(self):
+        self.keep_running = False
         if self.grab_device:
             self.inputdevice.ungrab()
 

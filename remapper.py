@@ -174,7 +174,7 @@ def delete():
 def run():
     remappers = CONFIG.get_remappers()
     for remapper in remappers:
-        remapper.run()
+        remapper.start()
 
 
 def debug():
@@ -212,11 +212,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.gui:
-        app = QApplication(sys.argv)
-        widget = gui.MyWidget()
-        widget.resize(800, 600)
-        widget.show()
-        sys.exit(app.exec_())
+        gui.show()
     elif args.debug:
         debug()
     elif args.run:

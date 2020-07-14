@@ -1,12 +1,18 @@
 import evdev
 
 
+def list_devices():
+    devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+    input_devices = []
+    for device in devices:
+        input_devices.append(InputDevice(device))
+    return input_devices
+
 def from_json(json):
     devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
     for device in devices:
         if device.name == json['name'] and device.phys == json['phys'] and device.version == json['version'] and device.info.vendor == json['vendor'] and device.info.product == json['product']:
             return InputDevice(device)
-
     return None
 
 
@@ -27,13 +33,13 @@ class InputDevice:
         return self.device.capabilities(absinfo=False)
 
     def vendor(self):
-        return self.device.vendor
+        return self.device.info.vendor
 
     def version(self):
         return self.device.version
 
     def product(self):
-        return self.device.product
+        return self.device.info.product
 
     def grab(self):
         return self.device.grab()
