@@ -3,8 +3,8 @@ import evdev
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSlot
 
-from ui.remapper_ui import Ui_RemapperWindow
-from ui.add_remap_ui import Ui_NewRemapDialog
+from remapper_ui import Ui_RemapperWindow
+from add_remap_ui import Ui_NewRemapDialog
 import config
 import inputdevice
 import outputdevice
