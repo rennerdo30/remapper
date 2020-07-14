@@ -205,14 +205,19 @@ def capture():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='remapper')
-    parser.add_argument('--gui', help='run application in gui mode')
+    parser.add_argument('--cli', help='run application in gui mode')
     parser.add_argument('--debug', help='check events of a evdev')
     parser.add_argument('--run', help='run remapper')
     parser.add_argument('--capture', help='capture events from a device')
     args = parser.parse_args()
 
-    if args.gui:
-        gui.show()
+    if args.cli:
+        print("Welcome to remapper!")
+        print("--------------------")
+        print("This software allows you to remap a evdev device to your needs!")
+        print("")
+
+        main()
     elif args.debug:
         debug()
     elif args.run:
@@ -220,9 +225,4 @@ if __name__ == "__main__":
     elif args.capture:
         capture()
     else:
-        print("Welcome to remapper!")
-        print("--------------------")
-        print("This software allows you to remap a evdev device to your needs!")
-        print("")
-
-        main()
+        gui.show()
