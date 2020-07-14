@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 import remap
 import inputdevice
@@ -7,16 +8,20 @@ import outputdevice
 import util
 
 class Config:
+    CONFIG_FILE = str(Path.home()) + '/.config/remapper/config.json'
+
     def __init__(self):
         self.data = {}
-        if os.path.exists('config.json'):
-            with open('config.json') as json_file:
+        if os.path.exists(self.CONFIG_FILE):
+            with open(self.CONFIG_FILE) as json_file:
                 self.data = json.load(json_file)
         else:
+            path = os.path.dirname(os.path.abspath(self.CONFIG_FILE))
+            os.makedirs(path)
             self.save()
 
     def save(self):
-        with open('config.json', 'w') as outfile:
+        with open(self.CONFIG_FILE, 'w') as outfile:
             json.dump(self.data, outfile)
 
     def add_remapper(self, remapper):
