@@ -1,5 +1,5 @@
 [Desktop Entry]
 Name=remapper
-Exec=/usr/bin/python /usr/bin/remapper.py
+Exec=/usr/bin/remapper.py
 Type=Application
 Categories=Utility;

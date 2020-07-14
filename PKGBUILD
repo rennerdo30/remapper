@@ -16,5 +16,7 @@ build() {
 
 package() {
     cd "$srcdir/remapper-master"
+    mkdir -p "$pkgdir/usr/share/applications/"
+    cp remapper.desktop "$pkgdir/usr/share/applications/"
     python setup.py install --root="$pkgdir" --optimize=1 --skip-build
 }
