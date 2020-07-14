@@ -2,3 +2,8 @@ builddir/
 .vscode/
 __pycache__/
 *.json
+build/
+*.pkg.tar.xz
+pkg/
+src/
+master.zip
