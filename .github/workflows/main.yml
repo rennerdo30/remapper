@@ -1,0 +1,5 @@
+- name: build-arch-package
+  uses: FFY00/build-arch-package@v1
+  with:
+    # PKGBUILD path
+    PKGBUILD: ./PKGBUILD
