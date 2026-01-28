@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "settings": {
+    "log_level": "debug",
+    "auto_start": false,
+    "hotplug_enabled": false
+  },
+  "profiles": [
+    {
+      "name": "Test Profile",
+      "enabled": true,
+      "input_device": {
+        "name": "Test Device"
+      },
+      "output_device": {
+        "name": "Remapped Test Device"
+      },
+      "grab": false,
+      "mappings": [
+        {
+          "type": "simple",
+          "from": { "type": "EV_KEY", "code": "BTN_A" },
+          "to": { "type": "EV_KEY", "code": "BTN_B" }
+        },
+        {
+          "type": "simple",
+          "from": { "type": "EV_KEY", "code": "BTN_X" },
+          "to": { "type": "EV_KEY", "code": "BTN_Y" }
+        }
+      ]
+    }
+  ]
+}

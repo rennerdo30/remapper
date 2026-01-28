@@ -1,0 +1,17 @@
+[Unit]
+Description=Remapper - Linux evdev input remapping (user service)
+Documentation=https://github.com/user/remapper
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.cargo/bin/remapper run --daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+# Environment
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

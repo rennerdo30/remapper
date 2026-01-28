@@ -1,0 +1,82 @@
+[package]
+name = "remapper"
+version = "2.0.0"
+edition = "2021"
+description = "Cross-platform input remapping tool"
+license = "GPL-3.0"
+repository = "https://github.com/user/remapper"
+authors = ["Remapper Contributors"]
+keywords = ["input", "remap", "gamepad", "keyboard", "mouse"]
+categories = ["hardware-support", "command-line-utilities"]
+
+[dependencies]
+# Core (cross-platform)
+tokio = { version = "1", features = ["full", "signal"] }
+thiserror = "1.0"
+anyhow = "1.0"
+async-trait = "0.1"
+pollster = "0.4"
+
+# Gamepad input (cross-platform)
+gilrs = "0.11"
+
+# Config
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+directories = "5.0"
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
+dialoguer = "0.11"
+console = "0.15"
+indicatif = "0.17"
+
+# GUI
+iced = { version = "0.13", features = ["tokio"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Linux-specific dependencies
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.12"
+nix = { version = "0.29", features = ["ioctl", "fs", "signal"] }
+inotify = "0.11"
+libc = "0.2"
+
+# Windows-specific dependencies
+[target.'cfg(windows)'.dependencies]
+vigem-client = "0.1"
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_System_Threading",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+]}
+raw-window-handle = "0.6"
+
+# macOS-specific dependencies
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+core-graphics = "0.24"
+io-kit-sys = "0.4"
+
+[dev-dependencies]
+tempfile = "3.10"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+
+[[bin]]
+name = "remapper"
+path = "src/main.rs"

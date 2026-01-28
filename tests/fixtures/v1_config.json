@@ -1,0 +1,13 @@
+{
+  "remaps": [
+    {
+      "input_device": "/dev/input/event5",
+      "output_device_name": "Remapped Controller",
+      "event_map": {
+        "304": 305,
+        "305": 304
+      },
+      "grab": true
+    }
+  ]
+}

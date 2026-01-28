@@ -1,0 +1,25 @@
+[Unit]
+Description=Remapper - Linux evdev input remapping (system service)
+Documentation=https://github.com/user/remapper
+After=local-fs.target
+Wants=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/remapper run --daemon
+Restart=on-failure
+RestartSec=5
+# Run as root for full device access
+User=root
+Group=root
+# Security hardening
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+# Need access to input devices
+DeviceAllow=/dev/input/*
+DeviceAllow=/dev/uinput
+
+[Install]
+WantedBy=multi-user.target

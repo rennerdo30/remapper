@@ -1,0 +1,22 @@
+# Remapper udev rules
+# These rules allow non-root users in the 'input' group to access input devices
+# and create virtual devices via uinput.
+
+# Allow members of the 'input' group to access all input event devices
+KERNEL=="event*", SUBSYSTEM=="input", MODE="0660", GROUP="input"
+
+# Allow members of the 'input' group to access uinput for creating virtual devices
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", GROUP="input"
+
+# Optional: Tag specific device types for easier identification
+# Gamepads
+SUBSYSTEM=="input", ATTRS{name}=="*Xbox*", TAG+="remapper-gamepad"
+SUBSYSTEM=="input", ATTRS{name}=="*PlayStation*", TAG+="remapper-gamepad"
+SUBSYSTEM=="input", ATTRS{name}=="*DualShock*", TAG+="remapper-gamepad"
+SUBSYSTEM=="input", ATTRS{name}=="*DualSense*", TAG+="remapper-gamepad"
+SUBSYSTEM=="input", ATTRS{name}=="*Controller*", TAG+="remapper-gamepad"
+SUBSYSTEM=="input", ATTRS{name}=="*Gamepad*", TAG+="remapper-gamepad"
+SUBSYSTEM=="input", ATTRS{name}=="*Joystick*", TAG+="remapper-gamepad"
+
+# Run remapper rule for hotplugged gamepads (optional, requires additional setup)
+# SUBSYSTEM=="input", TAG=="remapper-gamepad", RUN+="/usr/bin/remapper-hotplug %k"

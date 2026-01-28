@@ -1,9 +1,63 @@
-builddir/
+# Rust build artifacts
+/target/
+
+# IDE files
+.idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor backup files
+*.bak
+*.orig
+
+# Python artifacts (from original version)
 __pycache__/
-*.json
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+builddir/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Arch Linux package build
 *.pkg.tar.xz
+*.pkg.tar.zst
 pkg/
-src/
-master.zip
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Test and coverage
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# User config (don't commit personal configuration)
+# Note: test fixtures in tests/fixtures/*.json are tracked
+/config.json
+
+# Log files
+*.log
