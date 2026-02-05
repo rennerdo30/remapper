@@ -1,5 +1,46 @@
 //! macOS virtual output device implementation using Core Graphics
 //!
+//! # Supported Output Types
+//!
+//! - **Keyboard**: Full support via CGEvent keyboard events
+//! - **Mouse**: Full support via CGEvent mouse events (buttons, movement, scroll)
+//! - **Gamepad**: NOT SUPPORTED (see limitations below)
+//!
+//! # Gamepad Output Limitations
+//!
+//! Virtual gamepad output on macOS is not feasible with current technologies:
+//!
+//! ## Options Evaluated
+//!
+//! 1. **gilrs library**: Input-only. Does not support creating virtual gamepads.
+//!
+//! 2. **foohid (IOKit driver)**: Archived September 2024. Has thread-safety issues,
+//!    doesn't work on modern macOS (Big Sur+) due to kernel extension restrictions.
+//!    See: https://github.com/unbit/foohid
+//!
+//! 3. **Karabiner-DriverKit-VirtualHIDDevice**: Only supports keyboard and mouse.
+//!    Does NOT support gamepad/joystick devices.
+//!    See: https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice
+//!
+//! 4. **Apple GCVirtualController**: iOS/iPadOS only (iOS 15+), not available on macOS.
+//!    See: https://developer.apple.com/documentation/gamecontroller/gcvirtualcontroller
+//!
+//! 5. **Custom DriverKit solution**: Requires Apple DriverKit entitlement approval
+//!    (com.apple.developer.driverkit.family.hid.device), which Apple only grants
+//!    to specific developers after application. General developers cannot obtain this.
+//!
+//! ## Conclusion
+//!
+//! Until Apple provides a public API for virtual gamepad creation (similar to
+//! GCVirtualController but for macOS), or grants DriverKit entitlements more
+//! broadly, virtual gamepad output on macOS is not possible.
+//!
+//! # Permissions Required
+//!
+//! Keyboard/mouse output requires Accessibility permissions:
+//! - System Settings > Privacy & Security > Accessibility
+//! - Add the application to the allowed list
+//!
 //! Note: CGEventSource is not Send/Sync, so we create new sources for each operation.
 //! This is slightly less efficient but ensures thread safety.
 
@@ -75,11 +116,14 @@ impl OutputBackend for MacOSOutputBackend {
         let has_abs_axes = !capabilities.abs_axes.is_empty();
 
         if has_gamepad_buttons && has_abs_axes {
-            // Virtual gamepad output is not supported on macOS without DriverKit
+            // Virtual gamepad output is not feasible on macOS.
+            // See module-level documentation for detailed analysis of evaluated options.
             return Err(RemapperError::NotSupported(
-                "Virtual gamepad output is not yet supported on macOS. \
-                 This requires DriverKit approval from Apple. \
-                 Keyboard/mouse remapping is available."
+                "Virtual gamepad output is not supported on macOS. \
+                 All available options were evaluated: gilrs (input-only), foohid (deprecated/archived), \
+                 Karabiner-VirtualHIDDevice (keyboard/mouse only), GCVirtualController (iOS only). \
+                 DriverKit would require Apple entitlement approval not available to general developers. \
+                 Keyboard and mouse remapping remain fully supported."
                     .to_string(),
             ));
         }
@@ -91,7 +135,8 @@ impl OutputBackend for MacOSOutputBackend {
     fn supports_device_type(&self, device_type: DeviceType) -> bool {
         match device_type {
             DeviceType::Keyboard | DeviceType::Mouse => true,
-            DeviceType::Gamepad => false, // Not supported without DriverKit
+            // Gamepad output is not feasible on macOS - see module docs for full evaluation
+            DeviceType::Gamepad => false,
             DeviceType::Other => true,
         }
     }
@@ -103,9 +148,21 @@ impl OutputBackend for MacOSOutputBackend {
 
     fn availability_message(&self) -> Option<String> {
         Some(
-            "Virtual gamepad output requires DriverKit approval from Apple (not yet available).\n\
-             Keyboard/mouse output requires Accessibility permissions in System Preferences.\n\
-             Go to: System Preferences > Security & Privacy > Privacy > Accessibility"
+            "macOS Output Device Limitations:\n\n\
+             SUPPORTED:\n\
+             - Keyboard output (via Core Graphics)\n\
+             - Mouse output (buttons, movement, scroll)\n\n\
+             NOT SUPPORTED:\n\
+             - Virtual gamepad output\n\
+               Reason: No feasible solution exists. Evaluated options:\n\
+               - gilrs: Input-only library\n\
+               - foohid: Archived, deprecated, doesn't work on modern macOS\n\
+               - Karabiner-VirtualHIDDevice: Keyboard/mouse only\n\
+               - GCVirtualController: iOS/iPadOS only, not available on macOS\n\
+               - DriverKit: Requires Apple entitlement approval (not available to general devs)\n\n\
+             PERMISSIONS REQUIRED:\n\
+             System Settings > Privacy & Security > Accessibility\n\
+             Add this application to the allowed list."
                 .to_string(),
         )
     }
