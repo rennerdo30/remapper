@@ -14,7 +14,7 @@ categories = ["hardware-support", "command-line-utilities"]
 [dependencies]
 # Core (cross-platform)
 tokio = { version = "1", features = ["full", "signal"] }
-thiserror = "1.0"
+thiserror = "2.0"
 anyhow = "1.0"
 async-trait = "0.1"
 pollster = "0.4"
