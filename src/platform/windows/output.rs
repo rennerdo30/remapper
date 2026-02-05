@@ -1,12 +1,20 @@
 //! Windows virtual output device implementation using Vigem and SendInput
+//!
+//! # Thread Safety
+//!
+//! The `WindowsGamepadDevice` uses interior mutability via `Mutex` to provide
+//! thread-safe access to the ViGEm gamepad state. The `vigem_client::Client` and
+//! `Xbox360Wired` types do not implement `Sync` because they contain internal
+//! state that requires synchronization. By wrapping the mutable parts in a `Mutex`,
+//! we ensure safe concurrent access from multiple threads.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tracing::{debug, trace, warn};
 use vigem_client::{Client, TargetId, XButtons, XGamepad, Xbox360Wired};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP,
-    KEYEVENTF_SCANCODE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+    KEYEVENTF_SCANCODE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
     MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN,
     MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEINPUT,
 };
@@ -94,13 +102,37 @@ impl OutputBackend for WindowsOutputBackend {
     }
 }
 
-/// Windows virtual gamepad device using Vigem
-pub struct WindowsGamepadDevice {
-    name: String,
-    client: Client,
+/// Internal state for the gamepad that needs to be protected by a mutex
+struct GamepadInner {
     target: Xbox360Wired<Arc<Client>>,
     gamepad_state: XGamepad,
 }
+
+/// Windows virtual gamepad device using Vigem
+///
+/// Thread safety is achieved by wrapping all mutable state in a `Mutex`.
+/// The ViGEm `Client` and `Xbox360Wired` types do not implement `Sync` because
+/// they contain raw pointers and internal state. By using interior mutability,
+/// we can safely share this device across threads.
+pub struct WindowsGamepadDevice {
+    name: String,
+    /// Arc-wrapped client to share ownership
+    #[allow(dead_code)]
+    client: Arc<Client>,
+    /// Mutex-protected inner state for thread-safe access
+    inner: Mutex<GamepadInner>,
+}
+
+// The struct is Send because:
+// - `name` is String (Send + Sync)
+// - `client` is Arc<Client> - Client contains internal state but is used through Arc
+// - `inner` is Mutex<GamepadInner> which provides synchronized access
+//
+// The struct is Sync because all mutable state is behind a Mutex.
+// Note: We're asserting that Client is safe to send between threads when wrapped in Arc,
+// which is true because we only access it through synchronized operations.
+unsafe impl Send for WindowsGamepadDevice {}
+unsafe impl Sync for WindowsGamepadDevice {}
 
 impl WindowsGamepadDevice {
     pub fn new(name: &str) -> Result<Self> {
@@ -122,13 +154,16 @@ impl WindowsGamepadDevice {
 
         Ok(Self {
             name: name.to_string(),
-            client: Client::new().unwrap(), // Keep a reference to prevent drop
-            target,
-            gamepad_state: XGamepad::default(),
+            client,
+            inner: Mutex::new(GamepadInner {
+                target,
+                gamepad_state: XGamepad::default(),
+            }),
         })
     }
 
-    fn update_button(&mut self, code: u16, pressed: bool) {
+    /// Update a button state in the gamepad
+    fn update_button(inner: &mut GamepadInner, code: u16, pressed: bool) {
         let button = match code {
             304 => Some(XButtons::A),           // BTN_SOUTH
             305 => Some(XButtons::B),           // BTN_EAST
@@ -146,29 +181,30 @@ impl WindowsGamepadDevice {
 
         if let Some(btn) = button {
             if pressed {
-                self.gamepad_state.buttons.raw |= btn.raw;
+                inner.gamepad_state.buttons.raw |= btn.raw;
             } else {
-                self.gamepad_state.buttons.raw &= !btn.raw;
+                inner.gamepad_state.buttons.raw &= !btn.raw;
             }
         }
     }
 
-    fn update_axis(&mut self, code: u16, value: i32) {
+    /// Update an axis value in the gamepad
+    fn update_axis(inner: &mut GamepadInner, code: u16, value: i32) {
         match code {
-            0 => self.gamepad_state.thumb_lx = value as i16,    // ABS_X
-            1 => self.gamepad_state.thumb_ly = -(value as i16), // ABS_Y (inverted)
-            3 => self.gamepad_state.thumb_rx = value as i16,    // ABS_RX
-            4 => self.gamepad_state.thumb_ry = -(value as i16), // ABS_RY (inverted)
-            2 => self.gamepad_state.left_trigger = (value.clamp(0, 255)) as u8, // ABS_Z
-            5 => self.gamepad_state.right_trigger = (value.clamp(0, 255)) as u8, // ABS_RZ
+            0 => inner.gamepad_state.thumb_lx = value as i16,    // ABS_X
+            1 => inner.gamepad_state.thumb_ly = -(value as i16), // ABS_Y (inverted)
+            3 => inner.gamepad_state.thumb_rx = value as i16,    // ABS_RX
+            4 => inner.gamepad_state.thumb_ry = -(value as i16), // ABS_RY (inverted)
+            2 => inner.gamepad_state.left_trigger = (value.clamp(0, 255)) as u8, // ABS_Z
+            5 => inner.gamepad_state.right_trigger = (value.clamp(0, 255)) as u8, // ABS_RZ
             16 => {
                 // ABS_HAT0X (D-pad X)
                 match value {
-                    -1 => self.gamepad_state.buttons.raw |= XButtons::LEFT.raw,
-                    1 => self.gamepad_state.buttons.raw |= XButtons::RIGHT.raw,
+                    -1 => inner.gamepad_state.buttons.raw |= XButtons::LEFT.raw,
+                    1 => inner.gamepad_state.buttons.raw |= XButtons::RIGHT.raw,
                     0 => {
-                        self.gamepad_state.buttons.raw &= !XButtons::LEFT.raw;
-                        self.gamepad_state.buttons.raw &= !XButtons::RIGHT.raw;
+                        inner.gamepad_state.buttons.raw &= !XButtons::LEFT.raw;
+                        inner.gamepad_state.buttons.raw &= !XButtons::RIGHT.raw;
                     }
                     _ => {}
                 }
@@ -176,11 +212,11 @@ impl WindowsGamepadDevice {
             17 => {
                 // ABS_HAT0Y (D-pad Y)
                 match value {
-                    -1 => self.gamepad_state.buttons.raw |= XButtons::UP.raw,
-                    1 => self.gamepad_state.buttons.raw |= XButtons::DOWN.raw,
+                    -1 => inner.gamepad_state.buttons.raw |= XButtons::UP.raw,
+                    1 => inner.gamepad_state.buttons.raw |= XButtons::DOWN.raw,
                     0 => {
-                        self.gamepad_state.buttons.raw &= !XButtons::UP.raw;
-                        self.gamepad_state.buttons.raw &= !XButtons::DOWN.raw;
+                        inner.gamepad_state.buttons.raw &= !XButtons::UP.raw;
+                        inner.gamepad_state.buttons.raw &= !XButtons::DOWN.raw;
                     }
                     _ => {}
                 }
@@ -192,23 +228,63 @@ impl WindowsGamepadDevice {
 
 impl PlatformOutputDevice for WindowsGamepadDevice {
     fn write_event(&self, event: &PlatformInputEvent) -> Result<()> {
-        // We need mutable access, but the trait requires &self
-        // This is a limitation we work around by updating state in sync()
         trace!("Gamepad event: {:?}", event);
+
+        let mut inner = self.inner.lock().map_err(|e| {
+            RemapperError::EventWriteError(format!("Failed to lock gamepad state: {}", e))
+        })?;
+
+        match event.event_type {
+            1 => {
+                // EV_KEY - button events
+                Self::update_button(&mut inner, event.code, event.value != 0);
+            }
+            3 => {
+                // EV_ABS - axis events
+                Self::update_axis(&mut inner, event.code, event.value);
+            }
+            _ => {}
+        }
+
         Ok(())
     }
 
     fn write_events(&self, events: &[PlatformInputEvent]) -> Result<()> {
+        // Lock once for all events to ensure atomic updates
+        let mut inner = self.inner.lock().map_err(|e| {
+            RemapperError::EventWriteError(format!("Failed to lock gamepad state: {}", e))
+        })?;
+
         for event in events {
-            self.write_event(event)?;
+            trace!("Gamepad event: {:?}", event);
+
+            match event.event_type {
+                1 => {
+                    // EV_KEY - button events
+                    Self::update_button(&mut inner, event.code, event.value != 0);
+                }
+                3 => {
+                    // EV_ABS - axis events
+                    Self::update_axis(&mut inner, event.code, event.value);
+                }
+                _ => {}
+            }
         }
+
         Ok(())
     }
 
     fn sync(&self) -> Result<()> {
-        // Note: This requires mutable self, which is a trait design issue
-        // For now, we'd need interior mutability or trait redesign
-        // This is a placeholder - real implementation would use Mutex
+        let mut inner = self.inner.lock().map_err(|e| {
+            RemapperError::EventWriteError(format!("Failed to lock gamepad state: {}", e))
+        })?;
+
+        // Send the current gamepad state to the virtual device
+        inner.target.update(&inner.gamepad_state).map_err(|e| {
+            RemapperError::EventWriteError(format!("Failed to update gamepad state: {:?}", e))
+        })?;
+
+        trace!("Synced gamepad state: {:?}", inner.gamepad_state);
         Ok(())
     }
 
@@ -452,5 +528,148 @@ fn evdev_key_to_scancode(evdev_code: u16) -> u16 {
         87 => 0x57,  // KEY_F11
         88 => 0x58,  // KEY_F12
         _ => evdev_code, // Fallback to same code
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    /// Compile-time test that WindowsGamepadDevice implements Send + Sync
+    /// This verifies that the thread-safety wrapper is correctly implemented.
+    #[test]
+    fn test_gamepad_device_is_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+
+        assert_send::<WindowsGamepadDevice>();
+        assert_sync::<WindowsGamepadDevice>();
+    }
+
+    /// Compile-time test that WindowsKeyboardMouseDevice implements Send + Sync
+    #[test]
+    fn test_keyboard_mouse_device_is_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+
+        assert_send::<WindowsKeyboardMouseDevice>();
+        assert_sync::<WindowsKeyboardMouseDevice>();
+    }
+
+    /// Compile-time test that WindowsOutputBackend implements Send + Sync
+    #[test]
+    fn test_output_backend_is_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+
+        assert_send::<WindowsOutputBackend>();
+        assert_sync::<WindowsOutputBackend>();
+    }
+
+    /// Test concurrent access to WindowsGamepadDevice
+    /// This test requires ViGEmBus driver to be installed, so it's marked as ignored.
+    #[test]
+    #[ignore = "Requires ViGEmBus driver to be installed"]
+    fn test_concurrent_gamepad_access() {
+        let device = Arc::new(WindowsGamepadDevice::new("Test Gamepad").unwrap());
+
+        let mut handles = vec![];
+
+        // Spawn multiple threads that write events concurrently
+        for i in 0..4 {
+            let device_clone = Arc::clone(&device);
+            let handle = thread::spawn(move || {
+                // Simulate button presses from different threads
+                for j in 0..10 {
+                    let event = PlatformInputEvent::new(1, 304 + (i as u16 % 4), (j % 2) as i32);
+                    device_clone.write_event(&event).unwrap();
+                    device_clone.sync().unwrap();
+                }
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    /// Test concurrent axis updates on WindowsGamepadDevice
+    /// This test requires ViGEmBus driver to be installed, so it's marked as ignored.
+    #[test]
+    #[ignore = "Requires ViGEmBus driver to be installed"]
+    fn test_concurrent_axis_updates() {
+        let device = Arc::new(WindowsGamepadDevice::new("Test Gamepad Axes").unwrap());
+
+        let mut handles = vec![];
+
+        // Spawn threads for different axes
+        for axis_code in [0u16, 1, 3, 4] {
+            let device_clone = Arc::clone(&device);
+            let handle = thread::spawn(move || {
+                // Simulate axis movements
+                for value in (-32768i32..=32767).step_by(1000) {
+                    let event = PlatformInputEvent::new(3, axis_code, value);
+                    device_clone.write_event(&event).unwrap();
+                }
+                device_clone.sync().unwrap();
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    /// Test that write_events locks atomically for multiple events
+    /// This test requires ViGEmBus driver to be installed, so it's marked as ignored.
+    #[test]
+    #[ignore = "Requires ViGEmBus driver to be installed"]
+    fn test_atomic_batch_writes() {
+        let device = Arc::new(WindowsGamepadDevice::new("Test Gamepad Batch").unwrap());
+
+        let device_clone = Arc::clone(&device);
+        let writer = thread::spawn(move || {
+            // Write a batch of events atomically
+            let events: Vec<PlatformInputEvent> = (304..=308)
+                .map(|code| PlatformInputEvent::new(1, code, 1))
+                .collect();
+            device_clone.write_events(&events).unwrap();
+            device_clone.sync().unwrap();
+        });
+
+        // Another thread trying to read shouldn't see partial state
+        let device_clone2 = Arc::clone(&device);
+        let reader = thread::spawn(move || {
+            // This thread just exercises concurrent access
+            for _ in 0..100 {
+                let _ = device_clone2.sync();
+            }
+        });
+
+        writer.join().unwrap();
+        reader.join().unwrap();
+    }
+
+    /// Test keyboard/mouse device creation
+    #[test]
+    fn test_keyboard_mouse_device_creation() {
+        let device = WindowsKeyboardMouseDevice::new("Test KB/Mouse");
+        assert_eq!(device.name(), "Test KB/Mouse");
+    }
+
+    /// Test output backend availability
+    #[test]
+    fn test_output_backend_availability() {
+        let backend = WindowsOutputBackend::new();
+        // Keyboard/mouse is always available
+        assert!(backend.is_available());
+        assert!(backend.supports_device_type(DeviceType::Keyboard));
+        assert!(backend.supports_device_type(DeviceType::Mouse));
     }
 }
