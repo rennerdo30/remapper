@@ -5,11 +5,44 @@
 
 use std::sync::Mutex;
 
-use core_graphics::event::{
-    CGEvent, CGEventTapLocation, CGEventType, CGMouseButton,
-};
+use core_graphics::event::{CGEvent, CGEventTapLocation, CGEventType, CGMouseButton};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+use foreign_types_shared::ForeignType;
 use tracing::{debug, trace, warn};
+
+// FFI bindings for CGEventCreateScrollWheelEvent which is not exposed by core-graphics 0.24
+mod ffi {
+    use core_graphics::sys::{CGEventRef, CGEventSourceRef};
+
+    /// CGScrollEventUnit specifies the unit of measurement for scroll events
+    #[repr(u32)]
+    #[derive(Debug, Clone, Copy)]
+    pub enum CGScrollEventUnit {
+        /// Scroll amount is specified in pixels
+        Pixel = 0,
+        /// Scroll amount is specified in lines (discrete scroll units)
+        Line = 1,
+    }
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        /// Creates a scroll wheel event.
+        ///
+        /// # Parameters
+        /// - `source`: The event source (can be null)
+        /// - `units`: Whether scroll is measured in lines or pixels
+        /// - `wheel_count`: Number of scroll wheels (1 for vertical only, 2 for vertical+horizontal)
+        /// - `wheel1`: Primary (vertical) scroll delta
+        /// - `...`: Additional wheel deltas if wheel_count > 1
+        pub fn CGEventCreateScrollWheelEvent(
+            source: CGEventSourceRef,
+            units: CGScrollEventUnit,
+            wheel_count: u32,
+            wheel1: i32,
+            ...
+        ) -> CGEventRef;
+    }
+}
 
 use crate::core::error::{RemapperError, Result};
 use crate::platform::traits::{
@@ -164,11 +197,42 @@ impl MacOSOutputDevice {
         Ok(())
     }
 
-    fn post_scroll(&self, _delta_y: i32) -> Result<()> {
-        // Note: core-graphics 0.24 doesn't have new_scroll_event
-        // Scroll events would need to use CGEventCreateScrollWheelEvent via FFI
-        // For now, we log a warning and skip
-        warn!("Scroll events are not yet implemented on macOS");
+    fn post_scroll(&self, delta_y: i32) -> Result<()> {
+        self.post_scroll_wheel(delta_y, 0)
+    }
+
+    fn post_scroll_horizontal(&self, delta_x: i32) -> Result<()> {
+        self.post_scroll_wheel(0, delta_x)
+    }
+
+    fn post_scroll_wheel(&self, delta_y: i32, delta_x: i32) -> Result<()> {
+        let source = self.get_event_source()?;
+
+        // Safety: CGEventCreateScrollWheelEvent is a well-documented CoreGraphics function.
+        // We use Line units for discrete scroll events (matching typical mouse wheel behavior).
+        // The source reference is valid for the duration of this call.
+        let event_ref = unsafe {
+            ffi::CGEventCreateScrollWheelEvent(
+                source.as_ptr(),
+                ffi::CGScrollEventUnit::Line,
+                2, // wheel_count: 2 for both vertical and horizontal
+                delta_y,
+                delta_x,
+            )
+        };
+
+        if event_ref.is_null() {
+            return Err(RemapperError::EventWriteError(
+                "Failed to create scroll wheel event".to_string(),
+            ));
+        }
+
+        // Wrap in CGEvent to get automatic memory management and use the post method
+        // Safety: event_ref is a valid, non-null CGEventRef that we just created
+        let event = unsafe { CGEvent::from_ptr(event_ref) };
+        event.post(CGEventTapLocation::HID);
+
+        trace!("Posted scroll event: delta_y={}, delta_x={}", delta_y, delta_x);
         Ok(())
     }
 }
@@ -198,9 +262,10 @@ impl PlatformOutputDevice for MacOSOutputDevice {
             2 => {
                 // EV_REL
                 match event.code {
-                    0 => self.post_mouse_move(event.value, 0)?, // REL_X
-                    1 => self.post_mouse_move(0, event.value)?, // REL_Y
-                    8 => self.post_scroll(event.value)?,        // REL_WHEEL
+                    0 => self.post_mouse_move(event.value, 0)?,       // REL_X
+                    1 => self.post_mouse_move(0, event.value)?,       // REL_Y
+                    6 => self.post_scroll_horizontal(event.value)?,   // REL_HWHEEL
+                    8 => self.post_scroll(event.value)?,              // REL_WHEEL
                     _ => {}
                 }
             }
