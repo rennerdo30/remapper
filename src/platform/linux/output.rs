@@ -2,6 +2,7 @@
 
 use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
 use evdev::{AbsInfo, AbsoluteAxisType, AttributeSet, Key, RelativeAxisType, UinputAbsSetup};
+use std::sync::Mutex;
 use tracing::{debug, trace};
 
 use crate::core::error::{RemapperError, Result};
@@ -62,7 +63,7 @@ impl OutputBackend for LinuxOutputBackend {
 /// Linux virtual output device using uinput
 pub struct LinuxOutputDevice {
     /// The uinput virtual device
-    device: VirtualDevice,
+    device: Mutex<VirtualDevice>,
     /// Device name
     name: String,
 }
@@ -121,7 +122,7 @@ impl LinuxOutputDevice {
         debug!("Created virtual device: {}", name);
 
         Ok(Self {
-            device,
+            device: Mutex::new(device),
             name: name.to_string(),
         })
     }
@@ -135,7 +136,10 @@ impl PlatformOutputDevice for LinuxOutputDevice {
         let evdev_event = evdev::InputEvent::new(event_type, event.code, event.value);
         trace!("Writing event: {:?}", event);
 
-        self.device
+        let mut device = self.device.lock().map_err(|_| {
+            RemapperError::EventWriteError("Output device lock poisoned".to_string())
+        })?;
+        device
             .emit(&[evdev_event])
             .map_err(|e| RemapperError::EventWriteError(e.to_string()))?;
         Ok(())
@@ -150,7 +154,10 @@ impl PlatformOutputDevice for LinuxOutputDevice {
             })
             .collect();
 
-        self.device
+        let mut device = self.device.lock().map_err(|_| {
+            RemapperError::EventWriteError("Output device lock poisoned".to_string())
+        })?;
+        device
             .emit(&evdev_events)
             .map_err(|e| RemapperError::EventWriteError(e.to_string()))?;
         Ok(())

@@ -45,11 +45,7 @@ impl DeviceInfo {
         // Check for gamepad-specific buttons
         let is_gamepad = device
             .supported_keys()
-            .map(|keys| {
-                keys.contains(evdev::Key::BTN_GAMEPAD)
-                    || keys.contains(evdev::Key::BTN_A)
-                    || keys.contains(evdev::Key::BTN_SOUTH)
-            })
+            .map(|keys| has_abs && keys.contains(evdev::Key::BTN_SOUTH))
             .unwrap_or(false);
 
         // Check for keyboard keys

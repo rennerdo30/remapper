@@ -173,7 +173,11 @@ impl LinuxInputDevice {
         self.device
             .get_abs_state()
             .ok()
-            .and_then(|state| state.get(axis.0 as usize).copied())
+            .and_then(|state| {
+                state
+                    .get(axis.0 as usize)
+                    .map(|info| evdev::AbsInfo::new(info.value, info.minimum, info.maximum, info.fuzz, info.flat, info.resolution))
+            })
     }
 }
 
@@ -193,12 +197,16 @@ impl PlatformInputDevice for LinuxInputDevice {
                 Ok(events) => {
                     for event in events {
                         if let Some(event_type) = evdev_event_type_to_u16(event.event_type()) {
+                            let timestamp_us = event
+                                .timestamp()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_micros() as u64)
+                                .unwrap_or(0);
                             let platform_event = PlatformInputEvent {
                                 event_type,
                                 code: event.code(),
                                 value: event.value(),
-                                timestamp_us: (event.timestamp().tv_sec as u64 * 1_000_000)
-                                    + (event.timestamp().tv_usec as u64),
+                                timestamp_us,
                             };
                             trace!("Read event: {:?}", platform_event);
                             return Ok(Some(platform_event));
@@ -268,12 +276,12 @@ impl PlatformInputDevice for LinuxInputDevice {
                     .filter_map(|axis| {
                         self.abs_info(axis).map(|info| AbsAxisInfo {
                             code: axis.0,
-                            value: info.value,
-                            minimum: info.minimum,
-                            maximum: info.maximum,
-                            fuzz: info.fuzz,
-                            flat: info.flat,
-                            resolution: info.resolution,
+                            value: info.value(),
+                            minimum: info.minimum(),
+                            maximum: info.maximum(),
+                            fuzz: info.fuzz(),
+                            flat: info.flat(),
+                            resolution: info.resolution(),
                         })
                     })
                     .collect()
@@ -309,11 +317,7 @@ fn device_to_platform_info(path: &Path, device: &Device) -> PlatformDeviceInfo {
     // Detect device type based on capabilities
     let is_gamepad = device
         .supported_keys()
-        .map(|keys| {
-            keys.contains(evdev::Key::BTN_GAMEPAD)
-                || keys.contains(evdev::Key::BTN_A)
-                || keys.contains(evdev::Key::BTN_SOUTH)
-        })
+        .map(|keys| keys.contains(evdev::Key::BTN_SOUTH) && device.supported_absolute_axes().is_some())
         .unwrap_or(false);
 
     let is_keyboard = device

@@ -166,7 +166,7 @@ impl InputDevice {
 
     /// Get supported event types
     pub fn supported_events(&self) -> Vec<evdev::EventType> {
-        self.device.supported_events().collect()
+        self.device.supported_events().iter().collect()
     }
 
     /// Get supported keys
@@ -195,9 +195,11 @@ impl InputDevice {
 
     /// Get absolute axis info
     pub fn abs_info(&self, axis: evdev::AbsoluteAxisType) -> Option<evdev::AbsInfo> {
-        self.device.get_abs_state()
-            .ok()
-            .and_then(|state| state.get(axis.0 as usize).copied())
+        self.device.get_abs_state().ok().and_then(|state| {
+            state
+                .get(axis.0 as usize)
+                .map(|info| evdev::AbsInfo::new(info.value, info.minimum, info.maximum, info.fuzz, info.flat, info.resolution))
+        })
     }
 
     /// Get the underlying evdev Device reference

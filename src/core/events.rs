@@ -270,12 +270,16 @@ impl InputEvent {
     #[cfg(target_os = "linux")]
     pub fn from_evdev(event: &evdev::InputEvent) -> Option<Self> {
         let event_type = EventType::from_evdev(event.event_type())?;
+        let timestamp = event
+            .timestamp()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
         Some(Self {
             event_type,
             code: event.code(),
             value: event.value(),
-            time_sec: event.timestamp().tv_sec,
-            time_usec: event.timestamp().tv_usec,
+            time_sec: timestamp.as_secs() as i64,
+            time_usec: timestamp.subsec_micros() as i64,
         })
     }
 

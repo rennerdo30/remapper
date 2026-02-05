@@ -2,6 +2,7 @@
 
 use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
 use evdev::{AbsInfo, AbsoluteAxisType, AttributeSet, Key, RelativeAxisType, UinputAbsSetup};
+use std::sync::Mutex;
 use tracing::{debug, trace};
 
 use crate::core::error::{RemapperError, Result};
@@ -11,7 +12,7 @@ use crate::devices::InputDevice;
 /// Virtual output device
 pub struct OutputDevice {
     /// The uinput virtual device
-    device: VirtualDevice,
+    device: Mutex<VirtualDevice>,
     /// Device name
     name: String,
 }
@@ -53,7 +54,14 @@ impl OutputDevice {
             if let Some(info) = input.abs_info(axis) {
                 let abs_setup = UinputAbsSetup::new(
                     axis,
-                    AbsInfo::new(info.value, info.minimum, info.maximum, info.fuzz, info.flat, info.resolution),
+                    AbsInfo::new(
+                        info.value(),
+                        info.minimum(),
+                        info.maximum(),
+                        info.fuzz(),
+                        info.flat(),
+                        info.resolution(),
+                    ),
                 );
                 builder = builder
                     .with_absolute_axis(&abs_setup)
@@ -68,7 +76,7 @@ impl OutputDevice {
         debug!("Created virtual device: {}", name);
 
         Ok(Self {
-            device,
+            device: Mutex::new(device),
             name: name.to_string(),
         })
     }
@@ -118,7 +126,7 @@ impl OutputDevice {
         debug!("Created virtual device with custom caps: {}", name);
 
         Ok(Self {
-            device,
+            device: Mutex::new(device),
             name: name.to_string(),
         })
     }
@@ -132,7 +140,10 @@ impl OutputDevice {
     pub fn write_event(&self, event: &InputEvent) -> Result<()> {
         let evdev_event = event.to_evdev();
         trace!("Writing event: {}", event);
-        self.device
+        let mut device = self.device.lock().map_err(|_| {
+            RemapperError::EventWriteError("Output device lock poisoned".to_string())
+        })?;
+        device
             .emit(&[evdev_event])
             .map_err(|e| RemapperError::EventWriteError(e.to_string()))?;
         Ok(())
@@ -141,7 +152,10 @@ impl OutputDevice {
     /// Write multiple events to the virtual device
     pub fn write_events(&self, events: &[InputEvent]) -> Result<()> {
         let evdev_events: Vec<_> = events.iter().map(|e| e.to_evdev()).collect();
-        self.device
+        let mut device = self.device.lock().map_err(|_| {
+            RemapperError::EventWriteError("Output device lock poisoned".to_string())
+        })?;
+        device
             .emit(&evdev_events)
             .map_err(|e| RemapperError::EventWriteError(e.to_string()))?;
         Ok(())

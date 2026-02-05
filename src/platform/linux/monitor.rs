@@ -61,25 +61,19 @@ impl DeviceMonitor for LinuxDeviceMonitor {
                                     tokio::time::sleep(std::time::Duration::from_millis(100))
                                         .await;
 
-                                    // Try to get device info
-                                    if let Ok(Some(info)) =
-                                        backend.find_by_name(&device_id).await.ok().flatten().map(Some).or_else(|| {
-                                            // Try opening the device directly
-                                            None
-                                        })
-                                    {
-                                        info!("New device: {} ({})", info.name, info.id);
-                                        let _ = tx.send(DeviceChangeEvent::Added(info)).await;
+                                    // Refresh device list and find the just-created path.
+                                    if let Ok(devices) = backend.list_devices().await {
+                                        if let Some(info) =
+                                            devices.into_iter().find(|d| d.id == device_id)
+                                        {
+                                            info!("New device: {} ({})", info.name, info.id);
+                                            let _ = tx.send(DeviceChangeEvent::Added(info)).await;
+                                        }
                                     } else {
-                                        // Fallback: list all devices and find the new one
-                                        if let Ok(devices) = backend.list_devices().await {
-                                            if let Some(info) =
-                                                devices.into_iter().find(|d| d.id == device_id)
-                                            {
-                                                info!("New device: {} ({})", info.name, info.id);
-                                                let _ =
-                                                    tx.send(DeviceChangeEvent::Added(info)).await;
-                                            }
+                                        // Best-effort fallback when list refresh fails.
+                                        if let Ok(Some(info)) = backend.find_by_name(name).await {
+                                            info!("New device: {} ({})", info.name, info.id);
+                                            let _ = tx.send(DeviceChangeEvent::Added(info)).await;
                                         }
                                     }
                                 } else if event.mask.contains(EventMask::DELETE) {
