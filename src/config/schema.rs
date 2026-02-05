@@ -79,6 +79,26 @@ impl Config {
     }
 }
 
+/// Execution mode for running profiles
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionMode {
+    /// Run profiles in background threads within the GUI process
+    #[default]
+    BackgroundThread,
+    /// Run profiles via daemon process (persists after GUI closes)
+    Daemon,
+}
+
+impl std::fmt::Display for ExecutionMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExecutionMode::BackgroundThread => write!(f, "Background Thread"),
+            ExecutionMode::Daemon => write!(f, "Daemon"),
+        }
+    }
+}
+
 /// Global settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -91,6 +111,9 @@ pub struct Settings {
     /// Enable hotplug monitoring
     #[serde(default = "default_true")]
     pub hotplug_enabled: bool,
+    /// Execution mode (background_thread or daemon)
+    #[serde(default)]
+    pub execution_mode: ExecutionMode,
 }
 
 fn default_log_level() -> String {
@@ -107,6 +130,7 @@ impl Default for Settings {
             log_level: default_log_level(),
             auto_start: false,
             hotplug_enabled: true,
+            execution_mode: ExecutionMode::default(),
         }
     }
 }

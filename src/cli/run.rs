@@ -124,7 +124,9 @@ async fn run_foreground(profiles: Vec<crate::config::Profile>) -> Result<()> {
     Ok(())
 }
 
-/// Run as a daemon
-async fn run_daemon(profiles: Vec<crate::config::Profile>) -> Result<()> {
-    crate::daemon::run_daemon(profiles).await
+/// Run as a daemon with IPC support
+async fn run_daemon(_profiles: Vec<crate::config::Profile>) -> Result<()> {
+    // Use the IPC-enabled daemon which loads profiles from config
+    // and allows remote control via Unix socket
+    crate::daemon::run_daemon_with_ipc().await
 }

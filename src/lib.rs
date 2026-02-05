@@ -13,12 +13,16 @@
 
 pub mod config;
 pub mod core;
+#[cfg(target_os = "linux")]
+pub mod daemon;
 pub mod devices;
 pub mod mappings;
 pub mod platform;
 
 pub use config::{ConfigManager, Profile};
 pub use core::RemapEngine;
+#[cfg(target_os = "linux")]
+pub use daemon::{DaemonConnectionState, DaemonConnector, ProfileStatus};
 pub use devices::{DeviceManager, InputDevice, OutputDevice};
 pub use platform::{
     DeviceType, InputBackend, OutputBackend, PlatformDeviceInfo, PlatformInputDevice,

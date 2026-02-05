@@ -2,7 +2,7 @@
 
 mod manager;
 mod migration;
-mod schema;
+pub mod schema;
 
 pub use manager::ConfigManager;
-pub use schema::{DeviceMatch, MacroStep, Mapping, OutputConfig, Profile};
+pub use schema::{DeviceMatch, ExecutionMode, MacroStep, Mapping, OutputConfig, Profile};

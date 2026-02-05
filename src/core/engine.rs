@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{watch, Mutex, RwLock};
 use tracing::{debug, error, info, warn};
 
@@ -13,7 +14,8 @@ use super::error::{RemapperError, Result};
 use super::events::InputEvent;
 
 /// Engine state
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EngineState {
     /// Engine is stopped
     Stopped,
