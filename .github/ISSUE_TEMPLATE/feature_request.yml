@@ -1,0 +1,28 @@
+name: Feature Request
+description: Suggest an idea to improve Remapper
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or UX you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional alternatives or workarounds.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Links, references, examples, mockups.

@@ -1,23 +1,17 @@
-name: CI
+name: Release Build
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
-      - main
-  pull_request:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  rust:
-    name: Rust Check and Test
+  build-linux:
+    name: Build Linux Binary
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -35,8 +29,11 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Cargo Check
-        run: cargo check --all-targets --locked
+      - name: Build release
+        run: cargo build --release --locked
 
-      - name: Cargo Test
-        run: cargo test --all-targets --locked --quiet
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: remapper-linux-x86_64
+          path: target/release/remapper
