@@ -1,0 +1,206 @@
+{
+  "name": "Complete Remapper Rust Implementation",
+  "description": "Complete all unfinished features, stubs, and TODOs in the Rust rewrite of Remapper including GUI profile start, daemon config reload, and cross-platform support.",
+  "branchName": "ralph/complete-remapper-rust",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Implement GUI Profile Start with Background Thread",
+      "description": "As a user, I want to start a remapping profile from the GUI so that I can remap inputs without blocking the interface.",
+      "acceptanceCriteria": [
+        "Start Profile button spawns remapping engine in background thread",
+        "GUI remains responsive while remapping is active",
+        "Status indicator shows when profile is running",
+        "Stop Profile button cleanly terminates the background thread",
+        "Error handling displays failures to user (e.g., permission denied)",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "",
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-002",
+      "title": "Implement GUI Daemon Mode Support",
+      "description": "As a user, I want the option to start remapping via the daemon so that remapping persists after closing the GUI.",
+      "acceptanceCriteria": [
+        "Settings option to choose background thread vs daemon mode",
+        "When daemon mode selected, GUI spawns/connects to daemon process",
+        "GUI can start/stop profiles through daemon IPC",
+        "GUI shows daemon connection status",
+        "Graceful handling when daemon is unavailable",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-001"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Implement Daemon SIGHUP Config Reload",
+      "description": "As a user, I want to send SIGHUP to the daemon to reload configuration so that I can update remaps without restarting the service.",
+      "acceptanceCriteria": [
+        "SIGHUP handler stops all active remapping sessions",
+        "Configuration file is re-read from disk",
+        "All previously running profiles are restarted with new config",
+        "Errors during reload are logged (don't crash daemon)",
+        "If config is invalid, keep old config and log error",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Implement macOS Scroll Event Output",
+      "description": "As a user on macOS, I want scroll wheel remapping to work so that I can remap scroll inputs.",
+      "acceptanceCriteria": [
+        "Research and implement scroll event output using CGEvent or IOKit",
+        "Support both vertical and horizontal scroll",
+        "Scroll events work in all applications",
+        "If not possible, document limitation clearly in code and user docs",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-005",
+      "title": "Implement macOS Gamepad Output Using Library",
+      "description": "As a user on macOS, I want gamepad output remapping so that I can remap keyboard/mouse to gamepad buttons.",
+      "acceptanceCriteria": [
+        "Evaluate gilrs or similar library for gamepad output on macOS",
+        "If library supports output, implement virtual gamepad creation",
+        "If no library available, investigate foohid or DriverKit alternatives",
+        "Document any permission requirements (accessibility, input monitoring)",
+        "If not feasible, clearly document limitation and remove misleading code paths",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-006",
+      "title": "Implement macOS Full Keyboard/Mouse Input",
+      "description": "As a user on macOS, I want to capture keyboard and mouse input so that I can create remaps from any input device.",
+      "acceptanceCriteria": [
+        "Implement keyboard capture using IOKit HID Manager or CGEvent tap",
+        "Implement mouse capture (buttons and movement)",
+        "Handle accessibility permission requirements gracefully",
+        "Prompt user for permissions if not granted",
+        "Support both global capture and per-device capture where possible",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-007",
+      "title": "Implement Windows Keyboard/Mouse Input via Raw Input API",
+      "description": "As a user on Windows, I want keyboard and mouse input capture so that I can create remaps from these devices.",
+      "acceptanceCriteria": [
+        "Implement Raw Input API for keyboard capture",
+        "Implement Raw Input API for mouse capture",
+        "Support capturing from specific devices (not just global)",
+        "Handle Windows permission/elevation requirements",
+        "Evaluate winit or windows-rs crate for implementation",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-008",
+      "title": "Fix Windows Gamepad Output Sync Trait Design",
+      "description": "As a developer, I want the Windows gamepad output to properly implement the sync trait so that the code compiles without workarounds.",
+      "acceptanceCriteria": [
+        "Analyze why ViGEmClient doesn't implement Sync",
+        "Implement proper thread-safe wrapper or use interior mutability",
+        "Remove placeholder unsafe impl Sync if present",
+        "Ensure gamepad output works correctly in multi-threaded context",
+        "Add tests for concurrent gamepad output",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-009",
+      "title": "Clean Up Empty Placeholder Files",
+      "description": "As a developer, I want unused placeholder files removed so that the codebase is clean and maintainable.",
+      "acceptanceCriteria": [
+        "Remove or implement src/gui/main_view.rs",
+        "If main_view.rs is needed, implement actual functionality",
+        "If not needed, remove file and any references to it",
+        "Ensure no other empty/placeholder files exist",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-010",
+      "title": "Add Cross-Platform Input Device Enumeration",
+      "description": "As a user, I want to see available input devices on any platform so that I can select which device to remap.",
+      "acceptanceCriteria": [
+        "Linux: enumerate via /dev/input (already working)",
+        "macOS: enumerate HID devices via IOKit",
+        "Windows: enumerate via Raw Input or SetupAPI",
+        "Unified device list format across platforms",
+        "Show device name, type (keyboard/mouse/gamepad), and ID",
+        "cargo build --all-targets passes",
+        "cargo test passes",
+        "cargo clippy -- -D warnings passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-006",
+        "US-007"
+      ]
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-02-05T05:26:45.204Z"
+  }
+}
