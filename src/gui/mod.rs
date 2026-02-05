@@ -3,7 +3,6 @@
 mod app;
 mod device_picker;
 mod event_viewer;
-mod main_view;
 mod mapping_editor;
 mod profile_editor;
 mod theme;
