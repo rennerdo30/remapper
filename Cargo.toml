@@ -43,7 +43,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Linux-specific dependencies
 [target.'cfg(target_os = "linux")'.dependencies]
-evdev = "0.12"
+evdev = "0.13"
 nix = { version = "0.29", features = ["ioctl", "fs", "signal"] }
 inotify = "0.11"
 libc = "0.2"
