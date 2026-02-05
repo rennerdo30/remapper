@@ -1,5 +1,28 @@
-- name: build-arch-package
-  uses: FFY00/build-arch-package@v1
-  with:
-    # PKGBUILD path
-    PKGBUILD: ./PKGBUILD
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+jobs:
+  rust:
+    name: Rust Check and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cargo Check
+        run: cargo check --all-targets
+
+      - name: Cargo Test
+        run: cargo test --all-targets --quiet
