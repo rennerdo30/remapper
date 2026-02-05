@@ -89,10 +89,11 @@ pub async fn run_daemon(profiles: Vec<Profile>) -> Result<()> {
                 break;
             }
             _ = sighup.recv() => {
-                info!("Received SIGHUP, reloading configuration");
-                // TODO: Implement config reload
-                // For now, just log
-                warn!("Config reload not yet implemented");
+                info!("Received SIGHUP signal");
+                // This simple daemon mode doesn't support live config reload
+                // because engines are owned by spawned tasks.
+                // Use run_daemon_with_ipc() for full reload support.
+                warn!("Config reload not supported in simple daemon mode. Use daemon with IPC for reload support.");
             }
         }
     }
@@ -308,6 +309,141 @@ impl DaemonState {
             profiles,
         }
     }
+
+    /// Reload configuration and restart all running profiles
+    ///
+    /// This method:
+    /// 1. Records which profiles are currently running
+    /// 2. Stops all active remapping sessions
+    /// 3. Attempts to reload configuration from disk
+    /// 4. If config is invalid, keeps old config and logs error
+    /// 5. Restarts all previously running profiles with new config
+    async fn reload_config(&self) -> Result<String, String> {
+        info!("Starting configuration reload");
+
+        // Step 1: Get the list of currently running profile names
+        let running_profile_names: Vec<String> = {
+            let engines = self.engines.read().await;
+            engines.keys().cloned().collect()
+        };
+
+        info!(
+            "Currently running profiles: {:?}",
+            running_profile_names
+        );
+
+        // Step 2: Stop all active remapping sessions
+        if !running_profile_names.is_empty() {
+            info!("Stopping {} active remapping sessions", running_profile_names.len());
+
+            // Send shutdown signal to all engines
+            {
+                let engines = self.engines.read().await;
+                for (name, engine) in engines.iter() {
+                    debug!("Sending shutdown signal to engine: {}", name);
+                    let _ = engine.shutdown_tx.send(true);
+                }
+            }
+
+            // Wait for engines to stop (with timeout)
+            let max_wait = std::time::Duration::from_secs(5);
+            let start = Instant::now();
+
+            loop {
+                let still_running = {
+                    let engines = self.engines.read().await;
+                    engines.len()
+                };
+
+                if still_running == 0 {
+                    debug!("All engines stopped successfully");
+                    break;
+                }
+
+                if start.elapsed() > max_wait {
+                    warn!(
+                        "Timeout waiting for engines to stop, {} still running",
+                        still_running
+                    );
+                    break;
+                }
+
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+        }
+
+        // Step 3: Attempt to reload configuration from disk
+        let reload_result = {
+            let mut config = self.config.write().await;
+
+            // Try to load new configuration
+            match config.reload() {
+                Ok(()) => {
+                    info!("Configuration file reloaded successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    // Step 4: If config is invalid, keep old config
+                    error!("Failed to reload config, keeping old configuration: {}", e);
+                    Err(format!("Config reload failed: {}. Old configuration retained.", e))
+                }
+            }
+        };
+
+        // If reload failed, still try to restart the old profiles
+        let reload_error = reload_result.err();
+
+        // Step 5: Restart all previously running profiles with new (or old) config
+        let mut restart_errors = Vec::new();
+        let mut restarted_count = 0;
+
+        for profile_name in &running_profile_names {
+            info!("Restarting profile: {}", profile_name);
+
+            match self.start_profile(profile_name).await {
+                Ok(_) => {
+                    debug!("Profile '{}' restarted successfully", profile_name);
+                    restarted_count += 1;
+                }
+                Err(e) => {
+                    error!("Failed to restart profile '{}': {}", profile_name, e);
+                    restart_errors.push(format!("{}: {}", profile_name, e));
+                }
+            }
+        }
+
+        // Build response message
+        let mut message = if let Some(ref err) = reload_error {
+            format!("Config reload failed (keeping old config): {}. ", err)
+        } else {
+            "Configuration reloaded successfully. ".to_string()
+        };
+
+        if running_profile_names.is_empty() {
+            message.push_str("No profiles were running.");
+        } else if restart_errors.is_empty() {
+            message.push_str(&format!(
+                "Restarted {} profile(s).",
+                restarted_count
+            ));
+        } else {
+            message.push_str(&format!(
+                "Restarted {}/{} profile(s). Failed: {}",
+                restarted_count,
+                running_profile_names.len(),
+                restart_errors.join(", ")
+            ));
+        }
+
+        info!("{}", message);
+
+        // Return error only if config reload failed AND no profiles could be restarted
+        if reload_error.is_some() && restarted_count == 0 && !running_profile_names.is_empty() {
+            Err(message)
+        } else {
+            Ok(message)
+        }
+    }
 }
 
 /// Handle a single IPC connection
@@ -339,16 +475,9 @@ async fn handle_ipc_connection(mut conn: IpcConnection, state: Arc<DaemonState>)
                         IpcResponse::RunningProfiles { profiles }
                     }
 
-                    IpcRequest::ReloadConfig => {
-                        let mut config = state.config.write().await;
-                        match config.reload() {
-                            Ok(()) => IpcResponse::Ok {
-                                message: "Configuration reloaded".to_string(),
-                            },
-                            Err(e) => IpcResponse::Error {
-                                message: format!("Failed to reload config: {}", e),
-                            },
-                        }
+                    IpcRequest::ReloadConfig => match state.reload_config().await {
+                        Ok(msg) => IpcResponse::Ok { message: msg },
+                        Err(msg) => IpcResponse::Error { message: msg },
                     }
 
                     IpcRequest::Shutdown => {
@@ -459,9 +588,9 @@ pub async fn run_daemon_with_ipc() -> Result<()> {
             // Handle SIGHUP (reload config)
             _ = sighup.recv() => {
                 info!("Received SIGHUP, reloading configuration");
-                let mut config = state.config.write().await;
-                if let Err(e) = config.reload() {
-                    error!("Failed to reload config: {}", e);
+                match state.reload_config().await {
+                    Ok(msg) => info!("SIGHUP reload complete: {}", msg),
+                    Err(msg) => error!("SIGHUP reload failed: {}", msg),
                 }
             }
 
