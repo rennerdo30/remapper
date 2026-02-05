@@ -8,6 +8,9 @@
 //! - **Windows**: Gamepad support using gilrs, keyboard/mouse via SendInput, virtual gamepad via ViGEm
 //! - **macOS**: Gamepad support using gilrs, keyboard/mouse output via CGEventPost
 
+// Allow dead code in development - there are some unused public APIs prepared for future use
+#![allow(dead_code)]
+
 use anyhow::Result;
 use clap::Parser;
 use tracing::{info, warn};

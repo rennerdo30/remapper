@@ -166,7 +166,7 @@ impl ProfileEditor {
         mappings_section =
             mappings_section.push(text("Add simple key remappings below").size(11));
 
-        for (_idx, mapping) in self.mappings.iter().enumerate() {
+        for mapping in self.mappings.iter() {
             let mapping_row = row![
                 text_input("From (e.g., BTN_A)", &mapping.from_code)
                     .padding(8)

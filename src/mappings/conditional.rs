@@ -46,8 +46,8 @@ impl ConditionalHandler {
         }
 
         let trigger_code = Self::parse_key_code(&trigger)?;
-        let tap_code = tap.as_ref().map(|c| Self::parse_key_code(c)).transpose()?;
-        let hold_code = hold.as_ref().map(|c| Self::parse_key_code(c)).transpose()?;
+        let tap_code = tap.as_ref().map(Self::parse_key_code).transpose()?;
+        let hold_code = hold.as_ref().map(Self::parse_key_code).transpose()?;
 
         Ok(Self {
             trigger,

@@ -143,11 +143,8 @@ fn code_number_to_name(code: u16) -> String {
         317 => "BTN_THUMBL".to_string(),
         318 => "BTN_THUMBR".to_string(),
 
-        // Aliases
-        c if c == 304 => "BTN_A".to_string(),
-        c if c == 305 => "BTN_B".to_string(),
-        c if c == 307 => "BTN_X".to_string(),
-        c if c == 308 => "BTN_Y".to_string(),
+        // Note: BTN_A=BTN_SOUTH(304), BTN_B=BTN_EAST(305), BTN_X=BTN_NORTH(307), BTN_Y=BTN_WEST(308)
+        // These are aliases for the same codes, handled above
 
         // D-pad buttons
         544 => "BTN_DPAD_UP".to_string(),

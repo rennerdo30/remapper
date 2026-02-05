@@ -3,12 +3,19 @@
 use iced::widget::{button, column, container, horizontal_space, row, scrollable, text, Column};
 use iced::{Element, Length, Task, Theme};
 use std::collections::HashMap;
+use tokio::sync::{mpsc, watch};
 
 use crate::config::{ConfigManager, Profile};
-use crate::core::EngineState;
+use crate::core::{EngineState, RemapEngine};
 use crate::devices::DeviceManager;
 
 use super::profile_editor::ProfileEditor;
+
+/// Handle to a running engine with its control channel
+struct RunningEngine {
+    /// Shutdown signal sender - when set to true, the engine will stop
+    shutdown_tx: watch::Sender<bool>,
+}
 
 /// Main application state
 pub struct RemapperApp {
@@ -18,8 +25,10 @@ pub struct RemapperApp {
     config: Option<ConfigManager>,
     /// Error message if config failed to load
     config_error: Option<String>,
-    /// Running engines by profile name
-    running: HashMap<String, EngineState>,
+    /// Running engines by profile name (with their control handles)
+    running_engines: HashMap<String, RunningEngine>,
+    /// Cached engine states for display
+    engine_states: HashMap<String, EngineState>,
     /// Selected profile index
     selected_profile: Option<usize>,
     /// Profile editor state (when editing)
@@ -28,6 +37,10 @@ pub struct RemapperApp {
     devices: Vec<crate::devices::DeviceInfo>,
     /// Status message
     status: String,
+    /// Channel for receiving engine state updates
+    state_rx: Option<mpsc::UnboundedReceiver<(String, EngineState, Option<String>)>>,
+    /// Channel sender for engine state updates (cloned to spawned tasks)
+    state_tx: mpsc::UnboundedSender<(String, EngineState, Option<String>)>,
 }
 
 /// Current view
@@ -80,19 +93,26 @@ pub enum Message {
     Error(String),
     /// Clear status
     ClearStatus,
+    /// Periodic tick to poll engine state updates
+    Tick,
 }
 
 impl RemapperApp {
     pub fn new() -> (Self, Task<Message>) {
+        let (state_tx, state_rx) = mpsc::unbounded_channel();
+
         let app = Self {
             view: View::Main,
             config: None,
             config_error: None,
-            running: HashMap::new(),
+            running_engines: HashMap::new(),
+            engine_states: HashMap::new(),
             selected_profile: None,
             profile_editor: None,
             devices: Vec::new(),
             status: "Loading...".to_string(),
+            state_rx: Some(state_rx),
+            state_tx,
         };
 
         // Load config on startup
@@ -115,20 +135,95 @@ impl RemapperApp {
             }
 
             Message::StartProfile(name) => {
-                self.status = format!("Starting {}...", name);
-                self.running.insert(name.clone(), EngineState::Starting);
-                // TODO: Actually start the engine
-                Task::perform(async move { (name, EngineState::Running) }, |(n, s)| {
-                    Message::EngineStateChanged(n, s)
-                })
+                // Check if already running
+                if self.running_engines.contains_key(&name) {
+                    self.status = format!("Profile '{}' is already running", name);
+                    return Task::none();
+                }
+
+                // Get the profile from config
+                let profile = self
+                    .config
+                    .as_ref()
+                    .and_then(|c| c.get_profile(&name).cloned());
+
+                match profile {
+                    Some(profile) => {
+                        self.status = format!("Starting {}...", name);
+                        self.engine_states.insert(name.clone(), EngineState::Starting);
+
+                        // Create shutdown channel
+                        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+                        // Store the handle
+                        self.running_engines.insert(name.clone(), RunningEngine { shutdown_tx });
+
+                        // Clone state_tx for the spawned task
+                        let state_tx = self.state_tx.clone();
+                        let profile_name = name.clone();
+
+                        // Spawn the engine in a background task
+                        Task::perform(
+                            async move {
+                                start_engine_task(profile, shutdown_rx, state_tx, profile_name).await
+                            },
+                            |_| Message::Tick, // Tick will poll for state updates
+                        )
+                    }
+                    None => {
+                        self.status = format!("Error: Profile '{}' not found", name);
+                        Task::none()
+                    }
+                }
             }
 
             Message::StopProfile(name) => {
-                self.status = format!("Stopping {}...", name);
-                self.running.insert(name.clone(), EngineState::Stopping);
-                Task::perform(async move { (name, EngineState::Stopped) }, |(n, s)| {
-                    Message::EngineStateChanged(n, s)
-                })
+                if let Some(engine) = self.running_engines.get(&name) {
+                    self.status = format!("Stopping {}...", name);
+                    self.engine_states.insert(name.clone(), EngineState::Stopping);
+
+                    // Send shutdown signal
+                    let _ = engine.shutdown_tx.send(true);
+
+                    // Schedule a tick to poll for the state update
+                    Task::perform(
+                        async {
+                            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                        },
+                        |_| Message::Tick,
+                    )
+                } else {
+                    self.status = format!("Profile '{}' is not running", name);
+                    Task::none()
+                }
+            }
+
+            Message::Tick => {
+                // Process any pending state updates from background engines
+                if let Some(ref mut rx) = self.state_rx {
+                    while let Ok((name, state, error_msg)) = rx.try_recv() {
+                        self.engine_states.insert(name.clone(), state);
+                        if state == EngineState::Stopped || state == EngineState::Error {
+                            self.running_engines.remove(&name);
+                        }
+                        if let Some(err) = error_msg {
+                            self.status = format!("Error ({}): {}", name, err);
+                        } else {
+                            self.status = format!("{}: {}", name, state);
+                        }
+                    }
+                }
+                // Schedule next tick to keep polling
+                if !self.running_engines.is_empty() {
+                    Task::perform(
+                        async {
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        },
+                        |_| Message::Tick,
+                    )
+                } else {
+                    Task::none()
+                }
             }
 
             Message::CreateProfile => {
@@ -261,10 +356,9 @@ impl RemapperApp {
             }
 
             Message::EngineStateChanged(name, state) => {
-                if state == EngineState::Stopped {
-                    self.running.remove(&name);
-                } else {
-                    self.running.insert(name.clone(), state);
+                self.engine_states.insert(name.clone(), state);
+                if state == EngineState::Stopped || state == EngineState::Error {
+                    self.running_engines.remove(&name);
                 }
                 self.status = format!("{}: {}", name, state);
                 Task::none()
@@ -408,23 +502,31 @@ impl RemapperApp {
 
         for (idx, profile) in profiles.iter().enumerate() {
             let is_selected = self.selected_profile == Some(idx);
-            let is_running = self
-                .running
-                .get(&profile.name)
-                .map(|s| *s == EngineState::Running)
-                .unwrap_or(false);
+            let engine_state = self.engine_states.get(&profile.name).copied();
+            let is_running = engine_state == Some(EngineState::Running);
+            let is_starting = engine_state == Some(EngineState::Starting);
+            let is_stopping = engine_state == Some(EngineState::Stopping);
+            let has_error = engine_state == Some(EngineState::Error);
 
             let status_indicator = if is_running {
                 text("●").style(|_| text::Style {
-                    color: Some(iced::Color::from_rgb(0.0, 0.8, 0.0)),
+                    color: Some(iced::Color::from_rgb(0.0, 0.8, 0.0)), // Green - running
+                })
+            } else if is_starting || is_stopping {
+                text("◐").style(|_| text::Style {
+                    color: Some(iced::Color::from_rgb(1.0, 0.8, 0.0)), // Yellow - transitioning
+                })
+            } else if has_error {
+                text("●").style(|_| text::Style {
+                    color: Some(iced::Color::from_rgb(0.9, 0.2, 0.2)), // Red - error
                 })
             } else if profile.enabled {
                 text("○").style(|_| text::Style {
-                    color: Some(iced::Color::from_rgb(0.5, 0.5, 0.5)),
+                    color: Some(iced::Color::from_rgb(0.5, 0.5, 0.5)), // Gray - enabled but stopped
                 })
             } else {
                 text("○").style(|_| text::Style {
-                    color: Some(iced::Color::from_rgb(0.3, 0.3, 0.3)),
+                    color: Some(iced::Color::from_rgb(0.3, 0.3, 0.3)), // Dark gray - disabled
                 })
             };
 
@@ -438,6 +540,10 @@ impl RemapperApp {
                 button(text("Stop"))
                     .on_press(Message::StopProfile(profile.name.clone()))
                     .style(button::danger)
+            } else if is_starting {
+                button(text("Starting...")).style(button::secondary)
+            } else if is_stopping {
+                button(text("Stopping...")).style(button::secondary)
             } else {
                 button(text("Start"))
                     .on_press(Message::StartProfile(profile.name.clone()))
@@ -588,7 +694,20 @@ impl RemapperApp {
 
 impl Default for RemapperApp {
     fn default() -> Self {
-        Self::new().0
+        let (state_tx, state_rx) = mpsc::unbounded_channel();
+        Self {
+            view: View::Main,
+            config: None,
+            config_error: None,
+            running_engines: HashMap::new(),
+            engine_states: HashMap::new(),
+            selected_profile: None,
+            profile_editor: None,
+            devices: Vec::new(),
+            status: String::new(),
+            state_rx: Some(state_rx),
+            state_tx,
+        }
     }
 }
 
@@ -600,4 +719,66 @@ async fn load_config() -> Result<ConfigManager, String> {
 /// Refresh device list asynchronously
 async fn refresh_devices() -> Vec<crate::devices::DeviceInfo> {
     DeviceManager::list_devices().unwrap_or_default()
+}
+
+/// Start an engine in a background task
+async fn start_engine_task(
+    profile: Profile,
+    mut shutdown_rx: watch::Receiver<bool>,
+    state_tx: mpsc::UnboundedSender<(String, EngineState, Option<String>)>,
+    profile_name: String,
+) {
+    // Notify that we're starting
+    let _ = state_tx.send((profile_name.clone(), EngineState::Starting, None));
+
+    // Create the engine
+    let engine_result = RemapEngine::new(&profile).await;
+
+    match engine_result {
+        Ok(mut engine) => {
+            // Spawn the actual event loop in a separate task
+            // We use tokio::select to run the engine and listen for shutdown concurrently
+            let name = profile_name.clone();
+            let tx = state_tx.clone();
+
+            // Notify that we're now running (after engine creation succeeded)
+            let _ = state_tx.send((profile_name.clone(), EngineState::Running, None));
+
+            tokio::select! {
+                // Run the engine's start method which contains the event loop
+                result = engine.start() => {
+                    // Engine has stopped on its own (error or natural completion)
+                    match result {
+                        Ok(()) => {
+                            let _ = tx.send((name, EngineState::Stopped, None));
+                        }
+                        Err(e) => {
+                            let _ = tx.send((name, EngineState::Error, Some(e.to_string())));
+                        }
+                    }
+                }
+                // Wait for shutdown signal from GUI
+                _ = shutdown_rx.changed() => {
+                    // Shutdown requested - stop the engine gracefully
+                    let _ = tx.send((name.clone(), EngineState::Stopping, None));
+                    match engine.stop().await {
+                        Ok(()) => {
+                            let _ = tx.send((name, EngineState::Stopped, None));
+                        }
+                        Err(e) => {
+                            let _ = tx.send((name, EngineState::Error, Some(e.to_string())));
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            // Report the error
+            let _ = state_tx.send((
+                profile_name,
+                EngineState::Error,
+                Some(e.to_string()),
+            ));
+        }
+    }
 }

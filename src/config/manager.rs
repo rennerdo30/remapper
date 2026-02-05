@@ -66,7 +66,7 @@ impl ConfigManager {
             Err(e) => {
                 // Try to detect v1 format (no version field)
                 if let Ok(v1_value) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if !v1_value.get("version").is_some() {
+                    if v1_value.get("version").is_none() {
                         info!("Detected v1 config format, migrating...");
                         let migrated = migrate_v1_config(&v1_value)?;
 

@@ -279,7 +279,7 @@ impl MappingEditor {
                     .combo_keys
                     .iter()
                     .filter(|k| !k.is_empty())
-                    .map(|k| EventCode::key(k))
+                    .map(EventCode::key)
                     .collect();
 
                 if keys.len() < 2 {
