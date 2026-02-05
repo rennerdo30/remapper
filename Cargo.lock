@@ -3124,7 +3124,7 @@ dependencies = [
  "inotify",
  "io-kit-sys",
  "libc",
- "nix 0.29.0",
+ "nix 0.30.1",
  "pollster",
  "raw-window-handle",
  "serde",
