@@ -35,7 +35,7 @@ console = "0.15"
 indicatif = "0.17"
 
 # GUI
-iced = { version = "0.13", features = ["tokio"] }
+iced = { version = "0.14", features = ["tokio"] }
 
 # Logging
 tracing = "0.1"
