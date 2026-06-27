@@ -3129,7 +3129,7 @@ dependencies = [
  "async-trait",
  "clap",
  "clap_complete",
- "console 0.15.11",
+ "console 0.16.2",
  "core-foundation 0.10.1",
  "core-graphics 0.25.0",
  "dialoguer",
@@ -3200,7 +3200,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
