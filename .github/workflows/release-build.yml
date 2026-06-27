@@ -33,7 +33,7 @@ jobs:
         run: cargo build --release --locked
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: remapper-linux-x86_64
           path: target/release/remapper
