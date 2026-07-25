@@ -17,7 +17,7 @@ tokio = { version = "1", features = ["full", "signal"] }
 thiserror = "2.0"
 anyhow = "1.0"
 async-trait = "0.1"
-pollster = "0.4"
+pollster = "1.0"
 
 # Gamepad input (cross-platform)
 gilrs = "0.11"
