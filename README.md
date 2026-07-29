@@ -15,7 +15,19 @@ Remapper lets you map input events from physical devices (keyboard, mouse, gamep
 - Combo/chord mappings
 - CLI workflow for creating and running profiles
 - GUI built with `iced`
+- Background daemon, plus systemd user service management on Linux
+- Hot-plug device monitoring
 - JSON configuration with migration support
+
+## Platform support
+
+| Platform | Input | Virtual output |
+|----------|-------|----------------|
+| Linux | `evdev` (`/dev/input/*`) | `uinput` (`/dev/uinput`) - keyboard, mouse, gamepad |
+| Windows | Raw Input API | `SendInput` for keyboard/mouse, gamepads via the [ViGEmBus](https://github.com/nefarius/ViGEmBus) driver |
+| macOS | IOKit HID Manager | Core Graphics events for keyboard/mouse - virtual gamepad output is not supported |
+
+Gamepads are additionally read through `gilrs` on all platforms.
 
 ## Installation
 
@@ -35,7 +47,18 @@ The binary will be at `target/release/remapper`.
 - access to `/dev/input/*`
 - access to `/dev/uinput`
 
-Optional udev rules are provided in `udev/99-remapper.rules`.
+Optional udev rules are provided in `udev/99-remapper.rules`. A `PKGBUILD` for Arch-based
+distributions and unit files under `systemd/` are included as well.
+
+### Windows
+
+Virtual gamepad output requires the ViGEmBus driver. Without it, keyboard and mouse output still
+work and gamepad mappings are reported as unsupported.
+
+### macOS
+
+Capturing keyboard and mouse events requires the *Input Monitoring* permission
+(System Settings > Privacy & Security > Input Monitoring).
 
 ## Quick Start
 
@@ -53,17 +76,35 @@ remapper run
 remapper gui
 ```
 
-See all commands:
+## Commands
 
-```bash
-remapper --help
-```
+| Command | Purpose |
+|---------|---------|
+| `remapper create [name] [--device <path-or-name>]` | Create a profile interactively |
+| `remapper edit <name>` | Edit an existing profile |
+| `remapper delete <name>` | Delete a profile |
+| `remapper list devices` / `list profiles` | List input devices or configured profiles |
+| `remapper run [profiles...] [--daemon]` | Run enabled profiles, optionally in the background |
+| `remapper debug <device>` | Print raw events from a device |
+| `remapper gui` | Launch the graphical interface |
+| `remapper service <action>` | Manage the systemd user service (Linux only) |
+
+`remapper service` supports `install`, `uninstall`, `start`, `stop`, `restart`, `status`,
+`logs [--lines N] [--follow]`, `enable` and `disable`.
+
+Global flag: `-v/--verbose`. See `remapper --help` for the authoritative list.
 
 ## Configuration
 
-User configuration is stored in:
+Profiles and mappings live in a single `config.json` inside the platform config directory
+(resolved with the `directories` crate):
 
-- `~/.config/remapper/config.json`
+- Linux: `~/.config/remapper/config.json`
+- macOS: `~/Library/Application Support/remapper/config.json`
+- Windows: `%APPDATA%\remapper\config.json`
+
+Older v1 configuration files are migrated automatically on load; the original file is kept
+alongside as `config.v1.bak.json`, and timestamped backups are written before saving.
 
 Example fixtures are available in `tests/fixtures/`.
 
@@ -78,6 +119,10 @@ cargo test
 ```
 
 GitHub Actions runs CI on pushes and pull requests.
+
+> The Python files in the repository root (`remapper.py`, `gui.py`, `*_ui.py`, `requirements.txt`,
+> `setup.py`, ...) are the previous 1.x implementation. The current tool is the Rust crate in
+> `src/`; the Python version is no longer maintained.
 
 ## Project Docs
 
