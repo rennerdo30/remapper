@@ -147,7 +147,7 @@ impl LinuxInputDevice {
     }
 
     /// Get supported keys
-    pub fn supported_keys(&self) -> Vec<evdev::Key> {
+    pub fn supported_keys(&self) -> Vec<evdev::KeyCode> {
         self.device
             .supported_keys()
             .map(|keys| keys.iter().collect())
@@ -155,7 +155,7 @@ impl LinuxInputDevice {
     }
 
     /// Get supported absolute axes
-    pub fn supported_absolute_axes(&self) -> Vec<evdev::AbsoluteAxisType> {
+    pub fn supported_absolute_axes(&self) -> Vec<evdev::AbsoluteAxisCode> {
         self.device
             .supported_absolute_axes()
             .map(|axes| axes.iter().collect())
@@ -163,7 +163,7 @@ impl LinuxInputDevice {
     }
 
     /// Get supported relative axes
-    pub fn supported_relative_axes(&self) -> Vec<evdev::RelativeAxisType> {
+    pub fn supported_relative_axes(&self) -> Vec<evdev::RelativeAxisCode> {
         self.device
             .supported_relative_axes()
             .map(|axes| axes.iter().collect())
@@ -171,7 +171,7 @@ impl LinuxInputDevice {
     }
 
     /// Get absolute axis info
-    pub fn abs_info(&self, axis: evdev::AbsoluteAxisType) -> Option<evdev::AbsInfo> {
+    pub fn abs_info(&self, axis: evdev::AbsoluteAxisCode) -> Option<evdev::AbsInfo> {
         self.device
             .get_abs_state()
             .ok()
@@ -319,15 +319,15 @@ fn device_to_platform_info(path: &Path, device: &Device) -> PlatformDeviceInfo {
     // Detect device type based on capabilities
     let is_gamepad = device
         .supported_keys()
-        .map(|keys| keys.contains(evdev::Key::BTN_SOUTH) && device.supported_absolute_axes().is_some())
+        .map(|keys| keys.contains(evdev::KeyCode::BTN_SOUTH) && device.supported_absolute_axes().is_some())
         .unwrap_or(false);
 
     let is_keyboard = device
         .supported_keys()
         .map(|keys| {
-            keys.contains(evdev::Key::KEY_A)
-                && keys.contains(evdev::Key::KEY_Z)
-                && keys.contains(evdev::Key::KEY_ENTER)
+            keys.contains(evdev::KeyCode::KEY_A)
+                && keys.contains(evdev::KeyCode::KEY_Z)
+                && keys.contains(evdev::KeyCode::KEY_ENTER)
         })
         .unwrap_or(false);
 
@@ -335,7 +335,7 @@ fn device_to_platform_info(path: &Path, device: &Device) -> PlatformDeviceInfo {
     let is_mouse = has_rel
         && device
             .supported_keys()
-            .map(|keys| keys.contains(evdev::Key::BTN_LEFT))
+            .map(|keys| keys.contains(evdev::KeyCode::BTN_LEFT))
             .unwrap_or(false);
 
     let device_type = if is_gamepad {
