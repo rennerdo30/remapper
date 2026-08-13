@@ -178,19 +178,19 @@ impl EventCode {
 
     /// Parse code string to evdev Key (Linux only)
     #[cfg(target_os = "linux")]
-    pub fn to_evdev_key(&self) -> Option<evdev::Key> {
+    pub fn to_evdev_key(&self) -> Option<evdev::KeyCode> {
         parse_key_code(&self.code)
     }
 
-    /// Parse code string to evdev AbsoluteAxisType (Linux only)
+    /// Parse code string to evdev AbsoluteAxisCode (Linux only)
     #[cfg(target_os = "linux")]
-    pub fn to_evdev_abs(&self) -> Option<evdev::AbsoluteAxisType> {
+    pub fn to_evdev_abs(&self) -> Option<evdev::AbsoluteAxisCode> {
         parse_abs_code(&self.code)
     }
 
-    /// Parse code string to evdev RelativeAxisType (Linux only)
+    /// Parse code string to evdev RelativeAxisCode (Linux only)
     #[cfg(target_os = "linux")]
-    pub fn to_evdev_rel(&self) -> Option<evdev::RelativeAxisType> {
+    pub fn to_evdev_rel(&self) -> Option<evdev::RelativeAxisCode> {
         parse_rel_code(&self.code)
     }
 
@@ -286,7 +286,7 @@ impl InputEvent {
     /// Convert to evdev InputEvent
     #[cfg(target_os = "linux")]
     pub fn to_evdev(&self) -> evdev::InputEvent {
-        evdev::InputEvent::new(self.event_type.to_evdev(), self.code, self.value)
+        evdev::InputEvent::new(self.event_type.to_evdev().0, self.code, self.value)
     }
 
     /// Convert from platform input event
@@ -690,32 +690,32 @@ mod evdev_parsing {
     use super::*;
 
     /// Parse a key code string like "KEY_A" or "BTN_A" to evdev Key
-    pub fn parse_key_code(code: &str) -> Option<evdev::Key> {
-        parse_key_code_numeric(code).map(evdev::Key::new)
+    pub fn parse_key_code(code: &str) -> Option<evdev::KeyCode> {
+        parse_key_code_numeric(code).map(evdev::KeyCode::new)
     }
 
-    /// Parse an absolute axis code string to evdev AbsoluteAxisType
-    pub fn parse_abs_code(code: &str) -> Option<evdev::AbsoluteAxisType> {
-        parse_abs_code_numeric(code).map(evdev::AbsoluteAxisType)
+    /// Parse an absolute axis code string to evdev AbsoluteAxisCode
+    pub fn parse_abs_code(code: &str) -> Option<evdev::AbsoluteAxisCode> {
+        parse_abs_code_numeric(code).map(evdev::AbsoluteAxisCode)
     }
 
-    /// Parse a relative axis code string to evdev RelativeAxisType
-    pub fn parse_rel_code(code: &str) -> Option<evdev::RelativeAxisType> {
-        parse_rel_code_numeric(code).map(evdev::RelativeAxisType)
+    /// Parse a relative axis code string to evdev RelativeAxisCode
+    pub fn parse_rel_code(code: &str) -> Option<evdev::RelativeAxisCode> {
+        parse_rel_code_numeric(code).map(evdev::RelativeAxisCode)
     }
 
     /// Get the string name for a key code
-    pub fn key_code_name(key: evdev::Key) -> String {
+    pub fn key_code_name(key: evdev::KeyCode) -> String {
         format!("{:?}", key)
     }
 
     /// Get the string name for an absolute axis code
-    pub fn abs_code_name(axis: evdev::AbsoluteAxisType) -> String {
+    pub fn abs_code_name(axis: evdev::AbsoluteAxisCode) -> String {
         format!("{:?}", axis)
     }
 
     /// Get the string name for a relative axis code
-    pub fn rel_code_name(axis: evdev::RelativeAxisType) -> String {
+    pub fn rel_code_name(axis: evdev::RelativeAxisCode) -> String {
         format!("{:?}", axis)
     }
 }

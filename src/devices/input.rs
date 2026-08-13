@@ -172,7 +172,7 @@ impl InputDevice {
     }
 
     /// Get supported keys
-    pub fn supported_keys(&self) -> Vec<evdev::Key> {
+    pub fn supported_keys(&self) -> Vec<evdev::KeyCode> {
         self.device
             .supported_keys()
             .map(|keys| keys.iter().collect())
@@ -180,7 +180,7 @@ impl InputDevice {
     }
 
     /// Get supported absolute axes
-    pub fn supported_absolute_axes(&self) -> Vec<evdev::AbsoluteAxisType> {
+    pub fn supported_absolute_axes(&self) -> Vec<evdev::AbsoluteAxisCode> {
         self.device
             .supported_absolute_axes()
             .map(|axes| axes.iter().collect())
@@ -188,7 +188,7 @@ impl InputDevice {
     }
 
     /// Get supported relative axes
-    pub fn supported_relative_axes(&self) -> Vec<evdev::RelativeAxisType> {
+    pub fn supported_relative_axes(&self) -> Vec<evdev::RelativeAxisCode> {
         self.device
             .supported_relative_axes()
             .map(|axes| axes.iter().collect())
@@ -196,7 +196,7 @@ impl InputDevice {
     }
 
     /// Get absolute axis info
-    pub fn abs_info(&self, axis: evdev::AbsoluteAxisType) -> Option<evdev::AbsInfo> {
+    pub fn abs_info(&self, axis: evdev::AbsoluteAxisCode) -> Option<evdev::AbsInfo> {
         self.device.get_abs_state().ok().and_then(|state| {
             state
                 .get(axis.0 as usize)

@@ -109,12 +109,5 @@ pub enum RemapperError {
     NotSupported(String),
 }
 
-#[cfg(target_os = "linux")]
-impl From<evdev::Error> for RemapperError {
-    fn from(err: evdev::Error) -> Self {
-        RemapperError::PlatformError(err.to_string())
-    }
-}
-
 /// Result type alias for Remapper operations
 pub type Result<T> = std::result::Result<T, RemapperError>;

@@ -45,23 +45,23 @@ impl DeviceInfo {
         // Check for gamepad-specific buttons
         let is_gamepad = device
             .supported_keys()
-            .map(|keys| has_abs && keys.contains(evdev::Key::BTN_SOUTH))
+            .map(|keys| has_abs && keys.contains(evdev::KeyCode::BTN_SOUTH))
             .unwrap_or(false);
 
         // Check for keyboard keys
         let is_keyboard = device
             .supported_keys()
             .map(|keys| {
-                keys.contains(evdev::Key::KEY_A)
-                    && keys.contains(evdev::Key::KEY_Z)
-                    && keys.contains(evdev::Key::KEY_ENTER)
+                keys.contains(evdev::KeyCode::KEY_A)
+                    && keys.contains(evdev::KeyCode::KEY_Z)
+                    && keys.contains(evdev::KeyCode::KEY_ENTER)
             })
             .unwrap_or(false);
 
         // Check for mouse
         let is_mouse = has_rel && device
             .supported_keys()
-            .map(|keys| keys.contains(evdev::Key::BTN_LEFT))
+            .map(|keys| keys.contains(evdev::KeyCode::BTN_LEFT))
             .unwrap_or(false);
 
         Self {
