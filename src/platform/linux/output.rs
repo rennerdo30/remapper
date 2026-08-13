@@ -1,7 +1,7 @@
 //! Linux virtual output device implementation using uinput
 
-use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
-use evdev::{AbsInfo, AbsoluteAxisType, AttributeSet, Key, RelativeAxisType, UinputAbsSetup};
+use evdev::uinput::VirtualDevice;
+use evdev::{AbsInfo, AbsoluteAxisCode, AttributeSet, KeyCode, RelativeAxisCode, UinputAbsSetup};
 use std::sync::Mutex;
 use tracing::{debug, trace};
 
@@ -71,15 +71,15 @@ pub struct LinuxOutputDevice {
 impl LinuxOutputDevice {
     /// Create a new virtual output device with specified capabilities
     pub fn create(name: &str, capabilities: &DeviceCapabilities) -> Result<Self> {
-        let mut builder = VirtualDeviceBuilder::new()
+        let mut builder = VirtualDevice::builder()
             .map_err(|e| RemapperError::UInputCreationFailed(e.to_string()))?
             .name(name);
 
         // Add supported keys
         if !capabilities.keys.is_empty() {
-            let mut key_set = AttributeSet::<Key>::new();
+            let mut key_set = AttributeSet::<KeyCode>::new();
             for key_code in &capabilities.keys {
-                key_set.insert(Key::new(*key_code));
+                key_set.insert(KeyCode::new(*key_code));
             }
             builder = builder
                 .with_keys(&key_set)
@@ -88,9 +88,9 @@ impl LinuxOutputDevice {
 
         // Add supported relative axes
         if !capabilities.rel_axes.is_empty() {
-            let mut rel_set = AttributeSet::<RelativeAxisType>::new();
+            let mut rel_set = AttributeSet::<RelativeAxisCode>::new();
             for axis_code in &capabilities.rel_axes {
-                rel_set.insert(RelativeAxisType(*axis_code));
+                rel_set.insert(RelativeAxisCode(*axis_code));
             }
             builder = builder
                 .with_relative_axes(&rel_set)
@@ -100,7 +100,7 @@ impl LinuxOutputDevice {
         // Add supported absolute axes with their info
         for axis_info in &capabilities.abs_axes {
             let abs_setup = UinputAbsSetup::new(
-                AbsoluteAxisType(axis_info.code),
+                AbsoluteAxisCode(axis_info.code),
                 AbsInfo::new(
                     axis_info.value,
                     axis_info.minimum,
@@ -133,7 +133,7 @@ impl PlatformOutputDevice for LinuxOutputDevice {
         let event_type = u16_to_evdev_event_type(event.event_type)
             .ok_or_else(|| RemapperError::EventWriteError("Invalid event type".to_string()))?;
 
-        let evdev_event = evdev::InputEvent::new(event_type, event.code, event.value);
+        let evdev_event = evdev::InputEvent::new(event_type.0, event.code, event.value);
         trace!("Writing event: {:?}", event);
 
         let mut device = self.device.lock().map_err(|_| {
@@ -150,7 +150,7 @@ impl PlatformOutputDevice for LinuxOutputDevice {
             .iter()
             .filter_map(|e| {
                 u16_to_evdev_event_type(e.event_type)
-                    .map(|t| evdev::InputEvent::new(t, e.code, e.value))
+                    .map(|t| evdev::InputEvent::new(t.0, e.code, e.value))
             })
             .collect();
 

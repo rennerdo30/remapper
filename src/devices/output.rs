@@ -1,7 +1,7 @@
 //! Virtual output device using uinput
 
-use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
-use evdev::{AbsInfo, AbsoluteAxisType, AttributeSet, Key, RelativeAxisType, UinputAbsSetup};
+use evdev::uinput::VirtualDevice;
+use evdev::{AbsInfo, AbsoluteAxisCode, AttributeSet, KeyCode, RelativeAxisCode, UinputAbsSetup};
 use std::sync::Mutex;
 use tracing::{debug, trace};
 
@@ -20,14 +20,14 @@ pub struct OutputDevice {
 impl OutputDevice {
     /// Create a new virtual output device with capabilities from an input device
     pub fn create(name: &str, input: &InputDevice) -> Result<Self> {
-        let mut builder = VirtualDeviceBuilder::new()
+        let mut builder = VirtualDevice::builder()
             .map_err(|e| RemapperError::UInputCreationFailed(e.to_string()))?
             .name(name);
 
         // Copy supported keys from input device
         let keys = input.supported_keys();
         if !keys.is_empty() {
-            let mut key_set = AttributeSet::<Key>::new();
+            let mut key_set = AttributeSet::<KeyCode>::new();
             for key in keys {
                 key_set.insert(key);
             }
@@ -39,7 +39,7 @@ impl OutputDevice {
         // Copy supported relative axes
         let rel_axes = input.supported_relative_axes();
         if !rel_axes.is_empty() {
-            let mut rel_set = AttributeSet::<RelativeAxisType>::new();
+            let mut rel_set = AttributeSet::<RelativeAxisCode>::new();
             for axis in rel_axes {
                 rel_set.insert(axis);
             }
@@ -84,16 +84,16 @@ impl OutputDevice {
     /// Create a new virtual output device with specified capabilities
     pub fn create_with_caps(
         name: &str,
-        keys: &[Key],
-        rel_axes: &[RelativeAxisType],
-        abs_axes: &[(AbsoluteAxisType, AbsInfo)],
+        keys: &[KeyCode],
+        rel_axes: &[RelativeAxisCode],
+        abs_axes: &[(AbsoluteAxisCode, AbsInfo)],
     ) -> Result<Self> {
-        let mut builder = VirtualDeviceBuilder::new()
+        let mut builder = VirtualDevice::builder()
             .map_err(|e| RemapperError::UInputCreationFailed(e.to_string()))?
             .name(name);
 
         if !keys.is_empty() {
-            let mut key_set = AttributeSet::<Key>::new();
+            let mut key_set = AttributeSet::<KeyCode>::new();
             for key in keys {
                 key_set.insert(*key);
             }
@@ -103,7 +103,7 @@ impl OutputDevice {
         }
 
         if !rel_axes.is_empty() {
-            let mut rel_set = AttributeSet::<RelativeAxisType>::new();
+            let mut rel_set = AttributeSet::<RelativeAxisCode>::new();
             for axis in rel_axes {
                 rel_set.insert(*axis);
             }
