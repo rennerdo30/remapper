@@ -123,11 +123,13 @@ impl LinuxInputDevice {
         // Set up async I/O
         let raw_fd = device.as_raw_fd();
 
-        // Set non-blocking mode
-        let flags = nix::fcntl::fcntl(raw_fd, nix::fcntl::FcntlArg::F_GETFL)?;
+        // Set non-blocking mode. nix 0.30 requires an `AsFd` rather than a raw fd.
+        // SAFETY: `device` owns the fd and outlives these `fcntl` calls.
+        let borrowed_fd = unsafe { std::os::unix::io::BorrowedFd::borrow_raw(raw_fd) };
+        let flags = nix::fcntl::fcntl(borrowed_fd, nix::fcntl::FcntlArg::F_GETFL)?;
         let mut flags = nix::fcntl::OFlag::from_bits_truncate(flags);
         flags.insert(nix::fcntl::OFlag::O_NONBLOCK);
-        nix::fcntl::fcntl(raw_fd, nix::fcntl::FcntlArg::F_SETFL(flags))?;
+        nix::fcntl::fcntl(borrowed_fd, nix::fcntl::FcntlArg::F_SETFL(flags))?;
 
         let async_fd = Some(AsyncFd::new(raw_fd)?);
 

@@ -14,10 +14,10 @@ categories = ["hardware-support", "command-line-utilities"]
 [dependencies]
 # Core (cross-platform)
 tokio = { version = "1", features = ["full", "signal"] }
-thiserror = "1.0"
+thiserror = "2.0"
 anyhow = "1.0"
 async-trait = "0.1"
-pollster = "0.4"
+pollster = "1.0"
 
 # Gamepad input (cross-platform)
 gilrs = "0.11"
@@ -25,14 +25,14 @@ gilrs = "0.11"
 # Config
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-directories = "5.0"
+directories = "6.0"
 
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4"
-dialoguer = "0.11"
-console = "0.15"
-indicatif = "0.17"
+dialoguer = "0.12"
+console = "0.16"
+indicatif = "0.18"
 
 # GUI
 iced = { version = "0.13", features = ["tokio"] }
@@ -44,14 +44,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Linux-specific dependencies
 [target.'cfg(target_os = "linux")'.dependencies]
 evdev = "0.13"
-nix = { version = "0.29", features = ["ioctl", "fs", "signal"] }
+nix = { version = "0.31", features = ["ioctl", "fs", "signal"] }
 inotify = "0.11"
 libc = "0.2"
 
 # Windows-specific dependencies
 [target.'cfg(windows)'.dependencies]
 vigem-client = "0.1"
-windows = { version = "0.58", features = [
+windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Input",
@@ -67,9 +67,9 @@ raw-window-handle = "0.6"
 # macOS-specific dependencies
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
-core-graphics = "0.24"
+core-graphics = "0.25"
 foreign-types-shared = "0.3"
-io-kit-sys = "0.4"
+io-kit-sys = "0.5"
 
 [dev-dependencies]
 tempfile = "3.10"
