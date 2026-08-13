@@ -1,6 +1,6 @@
 //! Main application state and logic
 
-use iced::widget::{button, column, container, horizontal_space, row, scrollable, text, Column};
+use iced::widget::{button, column, container, row, scrollable, space, text, Column};
 use iced::{Element, Length, Task, Theme};
 use std::collections::HashMap;
 use tokio::sync::{mpsc, watch};
@@ -640,7 +640,7 @@ impl RemapperApp {
                         color: Some(iced::Color::from_rgb(0.9, 0.2, 0.2)),
                     }),
             };
-            row![status_text, horizontal_space(), daemon_indicator]
+            row![status_text, space::horizontal(), daemon_indicator]
                 .spacing(10)
                 .into()
         } else {
@@ -649,7 +649,7 @@ impl RemapperApp {
                 .style(|_: &Theme| text::Style {
                     color: Some(iced::Color::from_rgb(0.5, 0.5, 0.5)),
                 });
-            row![status_text, horizontal_space(), mode_indicator]
+            row![status_text, space::horizontal(), mode_indicator]
                 .spacing(10)
                 .into()
         };
@@ -723,7 +723,7 @@ impl RemapperApp {
             devices_btn,
             events_btn,
             settings_btn,
-            horizontal_space(),
+            space::horizontal(),
             add_btn,
             refresh_btn,
         ]
@@ -837,7 +837,7 @@ impl RemapperApp {
             let profile_row = row![
                 status_indicator,
                 info,
-                horizontal_space(),
+                space::horizontal(),
                 start_stop,
                 edit_btn,
                 toggle_btn,
@@ -887,7 +887,7 @@ impl RemapperApp {
         device_list = device_list.push(
             row![
                 text("Available Input Devices").size(20),
-                horizontal_space(),
+                space::horizontal(),
                 button(text("Refresh"))
                     .on_press(Message::RefreshDevices)
                     .style(button::secondary),
@@ -1036,7 +1036,7 @@ impl RemapperApp {
                 DaemonConnectionState::Unavailable | DaemonConnectionState::Disconnected => {
                     row![
                         text(daemon_status).size(14),
-                        horizontal_space(),
+                        space::horizontal(),
                         button(text("Start Daemon"))
                             .on_press(Message::SpawnDaemon)
                             .style(button::success),

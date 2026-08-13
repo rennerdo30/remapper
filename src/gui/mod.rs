@@ -13,10 +13,11 @@ use anyhow::Result;
 
 /// Run the GUI application
 pub async fn run_gui() -> Result<()> {
-    iced::application(RemapperApp::title, RemapperApp::update, RemapperApp::view)
+    iced::application(RemapperApp::new, RemapperApp::update, RemapperApp::view)
+        .title(RemapperApp::title)
         .theme(RemapperApp::theme)
         .window_size(iced::Size::new(900.0, 600.0))
-        .run_with(RemapperApp::new)?;
+        .run()?;
 
     Ok(())
 }
